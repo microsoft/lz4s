@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30320.27
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4s", "LZ4s\LZ4s.csproj", "{A97AC7D0-B0C6-427E-AFD9-6E46D2D44652}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4s.Test", "LZ4s.Test\LZ4s.Test.csproj", "{E26EEA0F-C44E-4BD3-A6A5-4A60C1B396D3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4s.Client", "LZ4s.Client\LZ4s.Client.csproj", "{C189D57B-D87E-40EA-A006-DE00657435AF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A97AC7D0-B0C6-427E-AFD9-6E46D2D44652}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A97AC7D0-B0C6-427E-AFD9-6E46D2D44652}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A97AC7D0-B0C6-427E-AFD9-6E46D2D44652}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A97AC7D0-B0C6-427E-AFD9-6E46D2D44652}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E26EEA0F-C44E-4BD3-A6A5-4A60C1B396D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E26EEA0F-C44E-4BD3-A6A5-4A60C1B396D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E26EEA0F-C44E-4BD3-A6A5-4A60C1B396D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E26EEA0F-C44E-4BD3-A6A5-4A60C1B396D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C189D57B-D87E-40EA-A006-DE00657435AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C189D57B-D87E-40EA-A006-DE00657435AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C189D57B-D87E-40EA-A006-DE00657435AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C189D57B-D87E-40EA-A006-DE00657435AF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3D9F78F7-F8B9-41C5-909A-38AECBB57ACF}
+	EndGlobalSection
+EndGlobal
