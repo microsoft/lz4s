@@ -23,19 +23,18 @@ We decided to try implementing this slight modification of the LZ4 algorithm as 
 An LZ4s document consists of:
 
 * A marker: "LZ4s", in UTF-8.
-* A version: "1" in UTF-8.
 * 0xFF, to distinguish the document from UTF-8 text.
 * A sequence of tokens. For each:
-  * One byte with the number of literal bytes in the high four bits and the number of copied bytes in the low four bits.
-  * If the number of literal bytes is 15, the next byte is the additional number of literal bytes.
-  * The literal bytes.
-  * If the number of copied byes is 15, the next byte is the additional number of copied bytes.
-  * Two bytes with the position to copy the bytes from, as an offset relative to the first byte of this token. (So, 100 would mean to copy from 100 bytes before the first byte in this token)
+  * One byte with the number of literal bytes in this token.
+  * One byte with the number of copied bytes in this token.
+  * Any literal bytes.
+  * If there are bytes to copy, a little endian ushort indicating how many bytes before the beginning of this token to copy from.
   * Each token may represent a maximum of 255 uncompressed bytes (so the literal length plus copied length must be 255 or less)
 * A 0x00 byte (indicating a token with zero literal and zero copied bytes)
 * A sequence of index entries, one per 512 bytes of uncompressed file size. For each:
   * Seven bytes indicating the absolute byte position of the token containing uncompressed[512 * i].
   * One byte indicating how many bytes the indicated token encodes before uncompressed[512 * i].
+* 8 bytes indicating the original, uncompressed byte length of the document.
 
 **TODO:** 
 

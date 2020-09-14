@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+
 using Xunit;
 
 namespace LZ4s.Test
@@ -28,7 +29,7 @@ namespace LZ4s.Test
 
                 Assert.Contains(i, results);
 
-                if(results.Count > 1)
+                if (results.Count > 1)
                 {
                     Debugger.Break();
                 }

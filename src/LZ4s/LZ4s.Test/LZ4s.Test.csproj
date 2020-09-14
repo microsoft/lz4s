@@ -7,12 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Content\Example.json" />
     <None Remove="Content\Tiny.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Content\Tiny.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Content\Example.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 

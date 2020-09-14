@@ -15,7 +15,7 @@ namespace LZ4s
         {
             _stream = stream;
 
-            _buffer = new byte[2 * Lz4sConstants.MaximumCopyFromLength];
+            _buffer = new byte[2 * Lz4sConstants.MaximumCopyFromDistance];
             _bufferLength = _stream.Read(_buffer, 0, _buffer.Length);
 
             for (int i = 0; i < Lz4sConstants.Preamble.Length; ++i)
@@ -27,10 +27,13 @@ namespace LZ4s
             }
 
             _bufferIndex += Lz4sConstants.Preamble.Length;
+
             if (_buffer[_bufferIndex] != Lz4sConstants.Separator)
             {
                 throw new IOException($"Stream does not have expected LZ4s separator. At {_bufferIndex:n0}, expected {Lz4sConstants.Separator}, found {_buffer[_bufferIndex]}.");
             }
+
+            _bufferIndex++;
         }
 
         public int Read(byte[] buffer, int index, int length)
@@ -51,7 +54,7 @@ namespace LZ4s
                     byte copyLength = _buffer[_bufferIndex++];
 
                     // If token not completely in buffer, read more before decoding
-                    if (_bufferIndex + literalLength + copyLength >= _bufferLength)
+                    if (_bufferIndex + literalLength + (copyLength > 0 ? 2 : 0) > _bufferLength)
                     {
                         _bufferIndex -= 2;
                         break;
@@ -68,7 +71,7 @@ namespace LZ4s
                     // Read copied bytes
                     if (copyLength > 0)
                     {
-                        ushort copyFromOffset = (ushort)(_buffer[_bufferIndex] + _buffer[_bufferIndex + 1] << 8);
+                        ushort copyFromOffset = (ushort)(_buffer[_bufferIndex] + (_buffer[_bufferIndex + 1] << 8));
                         int copyFromPosition = tokenStart - copyFromOffset;
                         if (copyFromPosition < 0)
                         {
@@ -81,7 +84,7 @@ namespace LZ4s
                     }
 
                     // If zero of both, end of content
-                    if (_bufferIndex == tokenStart)
+                    if (_bufferIndex - 2 == tokenStart)
                     {
                         _endOfData = true;
                         return (index - start);
@@ -89,24 +92,30 @@ namespace LZ4s
                 }
 
                 // Normal: Shift to start
-                int keepFromIndex = _bufferIndex - Lz4sConstants.MaximumCopyFromLength;
+                int keepFromIndex = _bufferIndex - Lz4sConstants.MaximumCopyFromDistance;
                 int keepLength = _bufferLength - keepFromIndex;
 
                 if (keepFromIndex > 0)
                 {
                     Buffer.BlockCopy(_buffer, keepFromIndex, _buffer, 0, keepLength);
 
-                    _bufferIndex = Lz4sConstants.MaximumCopyFromLength;
+                    _bufferIndex = Lz4sConstants.MaximumCopyFromDistance;
                     _bufferLength = keepLength;
                 }
 
                 _bufferLength += _stream.Read(_buffer, keepLength, _buffer.Length - keepLength);
+                if (_bufferIndex >= _bufferLength) { break; }
             }
 
             return (index - start);
         }
 
         public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
         {
             _stream.Dispose();
             _stream = null;
