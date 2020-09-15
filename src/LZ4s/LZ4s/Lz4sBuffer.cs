@@ -8,13 +8,26 @@ namespace LZ4s
         public byte[] Array;
         public int Index;
         public int End;
+
         public int Length => End - Index;
+        public int RemainingSpace => Array.Length - End;
 
         public Lz4sBuffer(byte[] array = null, int index = 0, int end = 0)
         {
             Array = array ?? new byte[Lz4sConstants.BufferSize];
             Index = index;
             End = end;
+        }
+
+        public void Append(byte[] array, int index, int length)
+        {
+            Buffer.BlockCopy(array, index, Array, End, length);
+            End += length;
+        }
+
+        public void Append(byte value)
+        {
+            Array[End++] = value;
         }
 
         public bool Read(Stream stream)
