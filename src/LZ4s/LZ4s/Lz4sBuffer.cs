@@ -30,20 +30,32 @@ namespace LZ4s
             Array[End++] = value;
         }
 
-        public bool Read(Stream stream)
+        public int Read(Stream stream)
         {
             int lengthRead = stream.Read(Array, End, Array.Length - End);
             End += lengthRead;
 
-            return (lengthRead != 0);
+            return lengthRead;
         }
 
-        public void Write(Stream stream, int bytesToKeep = 0)
+        public int Write(Stream stream, int bytesToKeep = 0)
         {
-            int lengthToWrite = Length - bytesToKeep;
+            int lengthToWrite = Math.Max(0, Length - bytesToKeep);
 
             stream.Write(Array, Index, lengthToWrite);
             Index += lengthToWrite;
+
+            return lengthToWrite;
+        }
+
+        public int Write(byte[] array, int index, int length)
+        {
+            int lengthToWrite = Math.Min(Length, length);
+
+            Buffer.BlockCopy(Array, Index, array, index, lengthToWrite);
+            Index += lengthToWrite;
+
+            return lengthToWrite;
         }
 
         public void Shift(int bytesBeforeIndexToKeep = 0)
