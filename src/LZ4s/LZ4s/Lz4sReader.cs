@@ -45,35 +45,26 @@ namespace LZ4s
 
             while (true)
             {
-                // Copy uncompress bytes to target array
+                // Uncompress until we have the requested amount or run out of compressed data
+                while (_uncompressedBuffer.Length < length && _compressedBuffer.Length >= 2)
+                {
+                    if (!ReadToken(_uncompressedBuffer.Array, ref _uncompressedBuffer.End, _uncompressedBuffer.Array.Length)) { break; }
+                }
+
+                // Copy what we have to the output array
                 int bytesRead = _uncompressedBuffer.Write(array, index, length);
                 index += bytesRead;
                 length -= bytesRead;
                 totalRead += bytesRead;
 
-                // If target array full, done
-                if (length == 0) { break; }
+                // If we fulfilled the request or decompressed all file data, stop
+                if (length == 0 || _endOfData) { break; }
 
-                // Clear uncompressed buffer for refilling
+                // Otherwise, make buffer space and read more from the file
                 _uncompressedBuffer.Shift();
-
-                // If we need more compressed data...
-                if (_compressedBuffer.Length < 2)
-                {
-                    // If there is no more, stop
-                    if (_endOfData) { break; }
-
-                    // Otherwise, refill from the file
-                    _compressedBuffer.Shift(Lz4sConstants.MaximumCopyFromDistance);
-                    int readFromFile = _compressedBuffer.Read(_stream);
-                    _endOfData = (readFromFile == 0);
-                }
-
-                // Uncompress available data
-                while (_compressedBuffer.Length >= 2 && _uncompressedBuffer.RemainingSpace > Lz4sConstants.MaximumTokenLength)
-                {
-                    if (!ReadToken(_uncompressedBuffer.Array, ref _uncompressedBuffer.End, _uncompressedBuffer.Array.Length)) { break; }
-                }
+                _compressedBuffer.Shift(Lz4sConstants.MaximumCopyFromDistance);
+                int readFromFile = _compressedBuffer.Read(_stream);
+                _endOfData = (readFromFile == 0);
             }
 
             // Return overall length read
