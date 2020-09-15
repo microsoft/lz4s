@@ -5,20 +5,6 @@ namespace LZ4s
 {
     public class Lz4sWriter : IDisposable
     {
-        private struct Lz4sToken
-        {
-            public byte LiteralLength;
-            public byte CopyLength;
-            public ushort CopyFromRelativeIndex;
-
-            public Lz4sToken(int literalLength, int copyLength, int copyFromRelativeIndex)
-            {
-                this.LiteralLength = (byte)literalLength;
-                this.CopyLength = (byte)copyLength;
-                this.CopyFromRelativeIndex = (ushort)copyFromRelativeIndex;
-            }
-        }
-
         private Stream _stream;
 
         // Buffer of *compressed* form of content, keeping enough context to find bytes to reuse (LZ4sConstants.MaximumCopyFromDistance)
@@ -27,14 +13,13 @@ namespace LZ4s
         // First index in buffer which doesn't yet have any data
         private int _bufferEnd;
 
-        public Lz4sWriter(Stream stream)
+        public Lz4sWriter(Stream stream, byte[] buffer = null)
         {
             _stream = stream;
-            _buffer = new byte[3 * Lz4sConstants.MaximumCopyFromDistance];
+            _buffer = buffer ?? new byte[Lz4sConstants.BufferSize];
 
             Lz4sConstants.Preamble.CopyTo(_buffer, _bufferEnd);
             _bufferEnd += Lz4sConstants.Preamble.Length;
-            _buffer[_bufferEnd++] = Lz4sConstants.Separator;
         }
 
         public void Write(byte[] array, int index, int length)
@@ -193,6 +178,20 @@ namespace LZ4s
             Close();
             _stream?.Dispose();
             _stream = null;
+        }
+
+        private struct Lz4sToken
+        {
+            public byte LiteralLength;
+            public byte CopyLength;
+            public ushort CopyFromRelativeIndex;
+
+            public Lz4sToken(int literalLength, int copyLength, int copyFromRelativeIndex)
+            {
+                this.LiteralLength = (byte)literalLength;
+                this.CopyLength = (byte)copyLength;
+                this.CopyFromRelativeIndex = (ushort)copyFromRelativeIndex;
+            }
         }
     }
 }

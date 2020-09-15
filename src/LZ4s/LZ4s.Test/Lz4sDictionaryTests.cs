@@ -12,7 +12,7 @@ namespace LZ4s.Test
         public void Lz4sDictionary_Basics()
         {
             Lz4sDictionary dictionary = new Lz4sDictionary();
-            byte[] data = File.ReadAllBytes("Content/Tiny.json");
+            byte[] data = File.ReadAllBytes("Content/Example.json");
 
             for (int i = 0; i + 3 < data.Length; ++i)
             {

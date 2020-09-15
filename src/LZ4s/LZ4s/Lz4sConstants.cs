@@ -1,14 +1,14 @@
-﻿using System.Text;
-
-namespace LZ4s
+﻿namespace LZ4s
 {
     internal static class Lz4sConstants
     {
-        public static readonly byte[] Preamble = Encoding.UTF8.GetBytes("LZ4S");
-        public const byte Separator = 0xFF;
+        public static readonly byte[] Preamble = { (byte)'L', (byte)'Z', (byte)'4', (byte)'S', 0xFF };
 
         public const int MinimumCopyLength = 4;
         public const int MaximumTokenLength = 255;
         public const int MaximumCopyFromDistance = 8192;
+
+        // Buffer lengths: Must be larger than MaxCopyDistance; larger means more bytes decoded per shift
+        public const int BufferSize = 4 * MaximumCopyFromDistance;
     }
 }
