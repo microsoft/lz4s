@@ -73,11 +73,12 @@ namespace LZ4s
 
         private bool ReadToken(byte[] array, ref int index, int end)
         {
+            byte[] source = _compressedBuffer.Array;
             int tokenStart = _compressedBuffer.Index;
 
             // Read lengths
-            byte literalLength = _compressedBuffer.Array[tokenStart];
-            byte copyLength = _compressedBuffer.Array[tokenStart + 1];
+            byte literalLength = source[tokenStart];
+            byte copyLength = source[tokenStart + 1];
 
             int compressedLength = 2 + literalLength + (copyLength > 0 ? 2 : 0);
             int decompressedLength = literalLength + copyLength;
@@ -95,13 +96,13 @@ namespace LZ4s
             }
 
             // Read literal bytes
-            Buffer.BlockCopy(_compressedBuffer.Array, tokenStart + 2, array, index, literalLength);
+            Copy(source, tokenStart + 2, array, index, literalLength);
 
             // Read copied bytes
             if (copyLength > 0)
             {
-                ushort copyFromOffset = (ushort)(_compressedBuffer.Array[tokenStart + 2 + literalLength] + (_compressedBuffer.Array[tokenStart + 2 + literalLength + 1] << 8));
-                Buffer.BlockCopy(_compressedBuffer.Array, tokenStart - copyFromOffset, array, index + literalLength, copyLength);
+                ushort copyFromOffset = (ushort)(source[tokenStart + 2 + literalLength] + (source[tokenStart + 2 + literalLength + 1] << 8));
+                Copy(source, tokenStart - copyFromOffset, array, index + literalLength, copyLength);
             }
 
             _compressedBuffer.Index += compressedLength;
@@ -115,6 +116,18 @@ namespace LZ4s
             else
             {
                 return true;
+            }
+        }
+
+        private void Copy(byte[] source, int sourceIndex, byte[] target, int targetIndex, int length)
+        {
+            //Buffer.BlockCopy(source, sourceIndex, target, targetIndex, length); // 4.0s
+            //Array.Copy(source, sourceIndex, target, targetIndex, length);       // 4.6s
+
+            // 3.2s
+            for (int i = 0; i < length; ++i)
+            {
+                target[targetIndex + i] = source[sourceIndex + i];
             }
         }
 

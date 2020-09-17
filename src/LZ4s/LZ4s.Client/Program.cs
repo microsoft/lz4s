@@ -22,10 +22,10 @@ namespace LZ4s.Client
                 Compress(filePath, lz4sPath, buffer);
                 w.Stop();
                 Console.WriteLine($"Compressed {targetSizeBytes:n0} bytes in {w.ElapsedMilliseconds} ms");
-
-                Decompress(lz4sPath, roundTripPath, buffer);
-                VerifyFileBytesEqual(filePath, roundTripPath);
             }
+
+            Decompress(lz4sPath, roundTripPath, buffer);
+            VerifyFileBytesEqual(filePath, roundTripPath);
 
             w.Restart();
             for (int i = 0; i < iterations; ++i)
@@ -33,7 +33,10 @@ namespace LZ4s.Client
                 Decompress(lz4sPath, roundTripPath, buffer);
             }
             w.Stop();
-            Console.WriteLine($"Decompressed {targetSizeBytes:n0} bytes {iterations}x in {w.Elapsed.TotalSeconds:n3} sec.");
+
+            double decompressedMegabytes = iterations * (double)targetSizeBytes / (1024 * 1024);
+            double megabytesPerSecond = decompressedMegabytes / w.Elapsed.TotalSeconds;
+            Console.WriteLine($"Decompressed {targetSizeBytes:n0} bytes {iterations}x in {w.Elapsed.TotalSeconds:n3} sec; {megabytesPerSecond:n1} MB/s");
         }
 
         private void RoundTrip(string filePath)

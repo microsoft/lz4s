@@ -15,12 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Content\ComplianceBuild.Baseline.sarif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Content\elfie-arriba.Insert.sarif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Content\Example.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
