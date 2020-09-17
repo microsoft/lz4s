@@ -14,14 +14,14 @@ namespace LZ4s
 
         public Lz4sBuffer(byte[] array = null, int index = 0, int end = 0)
         {
-            Array = array ?? new byte[Lz4sConstants.BufferSize];
+            Array = array ?? new byte[Constants.BufferSize];
             Index = index;
             End = end;
         }
 
         public void Append(byte[] array, int index, int length)
         {
-            Buffer.BlockCopy(array, index, Array, End, length);
+            Helpers.ArrayCopy(array, index, Array, End, length);
             End += length;
         }
 

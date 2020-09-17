@@ -12,7 +12,7 @@ namespace LZ4s
         {
             _stream = stream;
             _compressedBuffer = new Lz4sBuffer(buffer);
-            _compressedBuffer.Append(Lz4sConstants.Preamble, 0, Lz4sConstants.Preamble.Length);
+            _compressedBuffer.Append(Constants.Preamble, 0, Constants.Preamble.Length);
         }
 
         public void Write(byte[] array, int index, int length)
@@ -25,13 +25,13 @@ namespace LZ4s
             int nextTokenStart = index;
             while (nextTokenStart < end)
             {
-                Lz4sToken token = NextToken(array, nextTokenStart, end);
+                Token token = NextToken(array, nextTokenStart, end);
                 WriteToken(array, nextTokenStart, token);
                 nextTokenStart += token.LiteralLength + token.CopyLength;
             }
         }
 
-        private Lz4sToken NextToken(byte[] array, int index, int end)
+        private Token NextToken(byte[] array, int index, int end)
         {
             // Tokens have a limit of 'MaximumTokenLength'. After finding that many literal (non-copyable) bytes, stop and write a max-length, literals only token.
             // 'Stop' stops at the maximum token length. Since stop is passed as the array end to HasLongerMatch, it limits the literal+copy length to MaximumTokenLength.
@@ -39,33 +39,33 @@ namespace LZ4s
             // Copying bytes isn't worth it unless there are at least 'MinimumCopyLength'. Require matches to be at least that long to track.
             // 'BestCopyLength' starts just under this minimum to ensure matches achieve it.
 
-            int stop = Math.Min(index + Lz4sConstants.MaximumTokenLength, end);
+            int stop = Math.Min(index + Constants.MaximumTokenLength, end);
 
             // Try to find bytes at 'current' to copy from earlier, within the length limits allowed
             int current;
             for (current = index; current < stop; ++current)
             {
                 int bestCopyFrom = -1;
-                int bestCopyLength = Lz4sConstants.MinimumCopyLength - 1;
+                int bestCopyLength = Constants.MinimumCopyLength - 1;
 
                 // Find the longest match with array[current] in already compressed content
-                HasLongerMatch(array, current, stop, _compressedBuffer.Array, Math.Max(0, _compressedBuffer.End - Lz4sConstants.MaximumCopyFromDistance), _compressedBuffer.End, ref bestCopyFrom, ref bestCopyLength);
+                HasLongerMatch(array, current, stop, _compressedBuffer.Array, Math.Max(0, _compressedBuffer.End - Constants.MaximumCopyFromDistance), _compressedBuffer.End, ref bestCopyFrom, ref bestCopyLength);
 
                 // If there's a longer match earlier within the current token...
                 if (HasLongerMatch(array, current, stop, array, index, current, ref bestCopyFrom, ref bestCopyLength))
                 {
                     // Write a literal-only token with the bytes we want to reference next
-                    return new Lz4sToken(literalLength: bestCopyFrom + bestCopyLength, copyLength: 0, copyFromRelativeIndex: 0);
+                    return new Token(literalLength: bestCopyFrom + bestCopyLength, copyLength: 0, copyFromRelativeIndex: 0);
                 }
                 else if (bestCopyFrom > 0)
                 {
                     // Write a token with the literal and copied bytes
-                    return new Lz4sToken(literalLength: current - index, copyLength: bestCopyLength, copyFromRelativeIndex: _compressedBuffer.End - bestCopyFrom);
+                    return new Token(literalLength: current - index, copyLength: bestCopyLength, copyFromRelativeIndex: _compressedBuffer.End - bestCopyFrom);
                 }
             }
 
             // If we hit the end of the array or had too many literal bytes, write a literal-only token
-            return new Lz4sToken(literalLength: Math.Min(Lz4sConstants.MaximumTokenLength, end - index), copyLength: 0, copyFromRelativeIndex: 0);
+            return new Token(literalLength: Math.Min(Constants.MaximumTokenLength, end - index), copyLength: 0, copyFromRelativeIndex: 0);
         }
 
         private bool HasLongerMatch(byte[] toMatch, int toMatchIndex, int toMatchEnd, byte[] withinArray, int withinIndex, int withinEnd, ref int longestMatchIndex, ref int longestMatchLength)
@@ -99,13 +99,13 @@ namespace LZ4s
             return lengthLimit;
         }
 
-        private void WriteToken(byte[] array, int index, Lz4sToken token)
+        private void WriteToken(byte[] array, int index, Token token)
         {
             // Flush buffer if too full for token
             if (token.CompressedLength > _compressedBuffer.RemainingSpace)
             {
-                _compressedBuffer.Write(_stream, Lz4sConstants.MaximumCopyFromDistance);
-                _compressedBuffer.Shift(Lz4sConstants.MaximumCopyFromDistance);
+                _compressedBuffer.Write(_stream, Constants.MaximumCopyFromDistance);
+                _compressedBuffer.Shift(Constants.MaximumCopyFromDistance);
             }
 
             _compressedBuffer.Append(token.LiteralLength);
@@ -128,7 +128,7 @@ namespace LZ4s
         private void Close()
         {
             // Zero token to indicate end of content
-            WriteToken(null, 0, new Lz4sToken(0, 0, 0));
+            WriteToken(null, 0, new Token(0, 0, 0));
 
             // TODO: Index entries
 

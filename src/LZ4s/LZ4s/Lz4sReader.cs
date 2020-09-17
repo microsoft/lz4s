@@ -21,17 +21,17 @@ namespace LZ4s
             _compressedBuffer.Read(stream);
             _endOfData = (_compressedBuffer.Length == 0);
 
-            if (Lz4sConstants.Preamble.Length < _compressedBuffer.Length)
+            if (Constants.Preamble.Length < _compressedBuffer.Length)
             {
-                for (int i = 0; i < Lz4sConstants.Preamble.Length; ++i)
+                for (int i = 0; i < Constants.Preamble.Length; ++i)
                 {
-                    if (_compressedBuffer.Array[i] != Lz4sConstants.Preamble[i])
+                    if (_compressedBuffer.Array[i] != Constants.Preamble[i])
                     {
-                        throw new IOException($"Stream does not have expected LZ4s preamble. At {i:n0}, expected {Lz4sConstants.Preamble[i]}, found {_compressedBuffer.Array[i]}.");
+                        throw new IOException($"Stream does not have expected LZ4s preamble. At {i:n0}, expected {Constants.Preamble[i]}, found {_compressedBuffer.Array[i]}.");
                     }
                 }
 
-                _compressedBuffer.Index += Lz4sConstants.Preamble.Length;
+                _compressedBuffer.Index += Constants.Preamble.Length;
             }
         }
 
@@ -62,7 +62,7 @@ namespace LZ4s
 
                 // Otherwise, make buffer space and read more from the file
                 _uncompressedBuffer.Shift();
-                _compressedBuffer.Shift(Lz4sConstants.MaximumCopyFromDistance);
+                _compressedBuffer.Shift(Constants.MaximumCopyFromDistance);
                 int readFromFile = _compressedBuffer.Read(_stream);
                 _endOfData = (readFromFile == 0);
             }
@@ -96,13 +96,13 @@ namespace LZ4s
             }
 
             // Read literal bytes
-            Copy(source, tokenStart + 2, array, index, literalLength);
+            Helpers.ArrayCopy(source, tokenStart + 2, array, index, literalLength);
 
             // Read copied bytes
             if (copyLength > 0)
             {
                 ushort copyFromOffset = (ushort)(source[tokenStart + 2 + literalLength] + (source[tokenStart + 2 + literalLength + 1] << 8));
-                Copy(source, tokenStart - copyFromOffset, array, index + literalLength, copyLength);
+                Helpers.ArrayCopy(source, tokenStart - copyFromOffset, array, index + literalLength, copyLength);
             }
 
             _compressedBuffer.Index += compressedLength;
@@ -116,18 +116,6 @@ namespace LZ4s
             else
             {
                 return true;
-            }
-        }
-
-        private void Copy(byte[] source, int sourceIndex, byte[] target, int targetIndex, int length)
-        {
-            //Buffer.BlockCopy(source, sourceIndex, target, targetIndex, length); // 4.0s
-            //Array.Copy(source, sourceIndex, target, targetIndex, length);       // 4.6s
-
-            // 3.2s
-            for (int i = 0; i < length; ++i)
-            {
-                target[targetIndex + i] = source[sourceIndex + i];
             }
         }
 
