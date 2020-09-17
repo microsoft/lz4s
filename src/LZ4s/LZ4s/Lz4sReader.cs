@@ -6,40 +6,34 @@ namespace LZ4s
     public class Lz4sReader : IDisposable
     {
         private Stream _stream;
+        private bool _closeStream;
         private bool _endOfData;
 
         // NEXT: Rewrite in terms of buffers. Use uncompressed buffer to avoid need for bounds checks when decoding.
         private Lz4sBuffer _compressedBuffer;
         private Lz4sBuffer _uncompressedBuffer;
 
-        public Lz4sReader(Stream stream, byte[] compressedBuffer = null, byte[] uncompressedBuffer = null)
+        public Lz4sReader(Stream stream, bool closeStream = true, byte[] compressedBuffer = null, byte[] uncompressedBuffer = null)
         {
             _stream = stream;
+            _closeStream = closeStream;
             _compressedBuffer = new Lz4sBuffer(compressedBuffer);
             _uncompressedBuffer = new Lz4sBuffer(uncompressedBuffer);
 
             _compressedBuffer.Read(stream);
             _endOfData = (_compressedBuffer.Length == 0);
 
-            if (Constants.Preamble.Length < _compressedBuffer.Length)
+            if (!HasPreamble())
             {
-                for (int i = 0; i < Constants.Preamble.Length; ++i)
-                {
-                    if (_compressedBuffer.Array[i] != Constants.Preamble[i])
-                    {
-                        throw new IOException($"Stream does not have expected LZ4s preamble. At {i:n0}, expected {Constants.Preamble[i]}, found {_compressedBuffer.Array[i]}.");
-                    }
-                }
-
-                _compressedBuffer.Index += Constants.Preamble.Length;
+                throw new IOException("Stream does not start with required LZ4s preamble.");
             }
         }
 
         public int Read(byte[] array, int index, int length)
         {
             if (array == null) { throw new ArgumentNullException(nameof(array)); }
-            if (index < 0 || index >= array.Length) { throw new IndexOutOfRangeException(nameof(index)); }
-            if (length < 0 || index + length > array.Length) { throw new IndexOutOfRangeException(nameof(length)); }
+            if (index < 0 || index >= array.Length) { throw new ArgumentOutOfRangeException(nameof(index)); }
+            if (length < 0 || index + length > array.Length) { throw new ArgumentOutOfRangeException(nameof(length)); }
 
             int totalRead = 0;
 
@@ -119,6 +113,22 @@ namespace LZ4s
             }
         }
 
+        private bool HasPreamble()
+        {
+            if (_compressedBuffer.Length < Constants.Preamble.Length) { return false; }
+
+            for (int i = 0; i < Constants.Preamble.Length; ++i)
+            {
+                if (_compressedBuffer.Array[i] != Constants.Preamble[i])
+                {
+                    return false;
+                }
+            }
+
+            _compressedBuffer.Index += Constants.Preamble.Length;
+            return true;
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -126,7 +136,7 @@ namespace LZ4s
 
         protected virtual void Dispose(bool disposing)
         {
-            _stream?.Dispose();
+            if (_closeStream) { _stream?.Dispose(); }
             _stream = null;
         }
     }

@@ -6,11 +6,13 @@ namespace LZ4s
     public class Lz4sWriter : IDisposable
     {
         private Stream _stream;
+        private bool _closeStream;
         private Lz4sBuffer _compressedBuffer;
 
-        public Lz4sWriter(Stream stream, byte[] buffer = null)
+        public Lz4sWriter(Stream stream, bool closeStream = true, byte[] buffer = null)
         {
             _stream = stream;
+            _closeStream = closeStream;
             _compressedBuffer = new Lz4sBuffer(buffer);
             _compressedBuffer.Append(Constants.Preamble, 0, Constants.Preamble.Length);
         }
@@ -145,9 +147,12 @@ namespace LZ4s
 
         protected virtual void Dispose(bool disposing)
         {
-            Close();
-            _stream?.Dispose();
-            _stream = null;
+            if (_stream != null)
+            {
+                Close();
+                if (_closeStream) { _stream.Dispose(); }
+                _stream = null;
+            }
         }
     }
 }

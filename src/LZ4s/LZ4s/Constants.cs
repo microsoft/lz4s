@@ -1,6 +1,6 @@
 ﻿namespace LZ4s
 {
-    internal static class Constants
+    public static class Constants
     {
         public static readonly byte[] Preamble = { (byte)'L', (byte)'Z', (byte)'4', (byte)'S', 0xFF };
 
