@@ -16,17 +16,14 @@ namespace LZ4s.Test
 
             for (int i = 0; i + 3 < data.Length; ++i)
             {
-                uint key = (uint)((data[i] << 24) + (data[i + 1] << 16) + (data[i + 2] << 8) + data[i + 3]);
-                dictionary.Add(key, i);
+                dictionary.Add(data, i, i);
             }
 
             List<long> results = new List<long>();
 
             for (int i = 0; i + 3 < data.Length; ++i)
             {
-                uint key = (uint)((data[i] << 24) + (data[i + 1] << 16) + (data[i + 2] << 8) + data[i + 3]);
-                dictionary.Matches(key, results);
-
+                dictionary.Matches(data, i, results);
                 Assert.Contains(i, results);
 
                 if (results.Count > 1)

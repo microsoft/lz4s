@@ -10,6 +10,8 @@ namespace LZ4s
     /// </summary>
     public class Lz4sDictionary
     {
+        private const int Size = 2 * Constants.MaximumCopyFromDistance;
+
         private long _newStart;
         private ushort[] _newPositions;
         private long _oldStart;
@@ -17,14 +19,14 @@ namespace LZ4s
 
         public Lz4sDictionary()
         {
-            int size = Constants.MaximumCopyFromDistance * 2;
-            _oldPositions = new ushort[size];
-            _newPositions = new ushort[size];
+            _oldPositions = new ushort[Size];
+            _newPositions = new ushort[Size];
         }
 
-        public void Add(uint key, long position)
+        public void Add(byte[] array, int index, long position)
         {
-            uint bucket = Hashing.Murmur3_Mix(key) & (Constants.MaximumCopyFromDistance * 2 - 1);
+            uint key = (uint)((array[index] << 24) + (array[index + 1] << 16) + (array[index + 2] << 8) + array[index + 3]);
+            uint bucket = Hashing.Murmur3_Mix(key) & (Size - 1);
 
             // On each boundary, swap index parts and clear the current index
             ushort relativePosition = (ushort)(position - _newStart);
@@ -42,28 +44,29 @@ namespace LZ4s
 
             while (_newPositions[bucket] != 0)
             {
-                bucket = (bucket + 1) & (Constants.MaximumCopyFromDistance * 2 - 1);
+                bucket = (bucket + 1) & (Size - 1);
             }
 
             _newPositions[bucket] = (ushort)(relativePosition + 1);
         }
 
-        public void Matches(uint key, List<long> result)
+        public void Matches(byte[] array, int index, List<long> result)
         {
             result.Clear();
-            uint bucket = Hashing.Murmur3_Mix(key) & (Constants.MaximumCopyFromDistance * 2 - 1);
+            uint key = (uint)((array[index] << 24) + (array[index + 1] << 16) + (array[index + 2] << 8) + array[index + 3]);
+            uint bucket = Hashing.Murmur3_Mix(key) & (Size - 1);
 
             uint oldBucket = bucket;
             while (_oldPositions[oldBucket] != 0)
             {
                 result.Add(_oldStart + _oldPositions[oldBucket] - 1);
-                oldBucket = (oldBucket + 1) & (Constants.MaximumCopyFromDistance * 2 - 1);
+                oldBucket = (oldBucket + 1) & (Size - 1);
             }
 
             while (_newPositions[bucket] != 0)
             {
                 result.Add(_newStart + _newPositions[bucket] - 1);
-                bucket = (bucket + 1) & (Constants.MaximumCopyFromDistance * 2 - 1);
+                bucket = (bucket + 1) & (Size - 1);
             }
         }
     }

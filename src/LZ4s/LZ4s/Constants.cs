@@ -4,7 +4,7 @@
     {
         public static readonly byte[] Preamble = { (byte)'L', (byte)'Z', (byte)'4', (byte)'S', 0xFF };
 
-        public const int MinimumCopyLength = 4;
+        public const int MinimumCopyLength = 5;
         public const int MaximumTokenLength = 255;
         public const int MaximumCopyFromDistance = 8192;
 
