@@ -32,5 +32,20 @@ namespace LZ4s.Test
                 }
             }
         }
+
+        [Fact]
+        public void Lz4sDictionary2_Scan()
+        {
+            Lz4sDictionary2 dictionary = new Lz4sDictionary2();
+            byte[] data = File.ReadAllBytes("Content/Example.json");
+
+            int matchCount = 0;
+            Stopwatch w = Stopwatch.StartNew();
+            for (int i = 0; i < 1; ++i)
+            {
+                matchCount = dictionary.Scan(data, 0, data.Length, 0);
+            }
+            w.Stop();
+        }
     }
 }

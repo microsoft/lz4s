@@ -79,5 +79,56 @@ namespace LZ4s.Client
             tester.WriteHeader();
             tester.RoundTripFile(new FileInfo(filePath), decompressIterations: decompressIterations);
         }
+
+        public static void HashPerformance(string filePath, int hashIterations)
+        {
+            Lz4sDictionary2 dictionary = new Lz4sDictionary2();
+            byte[] buffer = new byte[Constants.BufferSize];
+
+            using (Stream stream = OpenFile(filePath, preloadIntoMemory: true))
+            {
+                Stopwatch w = Stopwatch.StartNew();
+
+                for (int i = 0; i < hashIterations; ++i)
+                {
+                    dictionary.Clear();
+                    stream.Seek(0, SeekOrigin.Begin);
+
+                    long position = 0;
+                    int matchCount = 0;
+
+                    while (true)
+                    {
+                        int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                        if (bytesRead == 0) { break; }
+
+                        matchCount += dictionary.Scan(buffer, 0, bytesRead, position);
+                        position += bytesRead;
+                    }
+                }
+
+                w.Stop();
+                Console.WriteLine($"Hashed {stream.Length * hashIterations / UnitBytes:n0} {Units} in {w.Elapsed.TotalSeconds:n3} sec. ({stream.Length * hashIterations / (UnitBytes * w.Elapsed.TotalSeconds):n0} {Units}/s)");
+            }
+        }
+
+        private static Stream OpenFile(string filePath, bool preloadIntoMemory)
+        {
+            if (preloadIntoMemory)
+            {
+                MemoryStream stream = new MemoryStream();
+                
+                using (Stream fileStream = File.OpenRead(filePath))
+                {
+                    fileStream.CopyTo(stream);
+                }
+
+                return stream;
+            }
+            else
+            {
+                return File.OpenRead(filePath);
+            }
+        }
     }
 }

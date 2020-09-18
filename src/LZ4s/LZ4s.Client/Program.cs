@@ -19,6 +19,10 @@ namespace LZ4s.Client
                     CompressionTester.DecompressionPerformance(targetPath, 100);
                     break;
 
+                case "hash":
+                    CompressionTester.HashPerformance(targetPath, 50);
+                    break;
+
                 default:
                     Console.WriteLine($"Unknown Mode: '{mode}'. Modes:\r\n\tcompressFolder [folderPath]\r\n\tdecompressPerformance [filePath]");
                     break;

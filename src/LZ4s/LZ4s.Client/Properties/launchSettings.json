@@ -2,7 +2,7 @@
   "profiles": {
     "LZ4s.Client": {
       "commandName": "Project",
-      "commandLineArgs": "decompressPerformance \"C:\\Download\\LZ4S_Content\\Example.json\""
+      "commandLineArgs": "hash \"C:\\Download\\Example.10MB.json\""
     }
   }
 }
