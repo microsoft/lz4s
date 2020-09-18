@@ -68,7 +68,7 @@ namespace LZ4s.Client
             tester.WriteHeader();
             foreach (FileInfo file in new DirectoryInfo(folderPath).GetFiles())
             {
-                tester.RoundTripFile(file);
+                tester.RoundTripFile(file, decompressIterations: 10);
             }
         }
 

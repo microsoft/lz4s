@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LZ4s.Client": {
+      "commandName": "Project",
+      "commandLineArgs": "decompressPerformance \"C:\\Download\\LZ4S_Content\\Example.json\""
+    }
+  }
+}
