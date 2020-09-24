@@ -15,5 +15,15 @@
                 target[targetIndex + i] = source[sourceIndex + i];
             }
         }
+
+        public static int MatchLength(byte[] left, int leftIndex, byte[] right, int rightIndex, int lengthLimit)
+        {
+            for (int length = 0; length < lengthLimit; ++length)
+            {
+                if (left[leftIndex + length] != right[rightIndex + length]) { return length; }
+            }
+
+            return lengthLimit;
+        }
     }
 }

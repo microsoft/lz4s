@@ -3,7 +3,7 @@ using System.IO;
 
 namespace LZ4s
 {
-    internal class Lz4sBuffer
+    public class Lz4sBuffer
     {
         public byte[] Array;
         public int Index;
@@ -14,7 +14,7 @@ namespace LZ4s
 
         public Lz4sBuffer(byte[] array = null, int index = 0, int end = 0)
         {
-            Array = array ?? new byte[Constants.BufferSize];
+            Array = array ?? new byte[Lz4Constants.BufferSize];
             Index = index;
             End = end;
         }
@@ -37,6 +37,17 @@ namespace LZ4s
 
             return lengthRead;
         }
+
+        public int Read(byte[] array, int index, int length)
+        {
+            int lengthToRead = Math.Min(Array.Length - End, length);
+
+            Buffer.BlockCopy(array, index, Array, End, lengthToRead);
+            End += lengthToRead;
+
+            return lengthToRead;
+        }
+
 
         public int Write(Stream stream, int bytesToKeep = 0)
         {
