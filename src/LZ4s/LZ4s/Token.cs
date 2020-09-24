@@ -1,6 +1,6 @@
 ﻿namespace LZ4s
 {
-    internal struct Token
+    public struct Token
     {
         public byte LiteralLength;
         public byte CopyLength;

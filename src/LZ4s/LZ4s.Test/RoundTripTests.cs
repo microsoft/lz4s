@@ -23,7 +23,7 @@ namespace LZ4s.Test
             string lz4sPath = filePath + ".lz4s";
             string roundTripPath = filePath + ".out";
 
-            byte[] buffer = new byte[Constants.BufferSize];
+            byte[] buffer = new byte[Lz4Constants.BufferSize];
             Lz4sStream.Compress(filePath, lz4sPath, buffer);
             Lz4sStream.Decompress(lz4sPath, roundTripPath, buffer);
             Assert.True(Lz4sStream.VerifyBytesEqual(filePath, roundTripPath, out string errorMessage));

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace LZ4s
 {
@@ -8,91 +7,126 @@ namespace LZ4s
     //  - How many false positives by bucket? Does keeping another hash byte sufficiently resolve?
     //  - How expensive to confirm bytes match at referenced position in array?
 
-    public class Lz4sDictionary2
+    public struct Match
     {
-        private const int Size = 2 * Constants.MaximumCopyFromDistance;
+        public int Index;
+        public ushort Length;
+    }
 
-        private long _newStart;
-        private uint[] _newKeys;
-        private ushort[] _newPositions;
+    internal class DictionarySlice
+    {
+        public const int Size = 2 * Lz4Constants.MaximumCopyFromDistance;
 
-        private long _oldStart;
-        private uint[] _oldKeys;
-        private ushort[] _oldPositions;
+        private long Start;
+        private ushort[] Positions;
 
-        public Lz4sDictionary2()
+        public long SwapPosition => Start + Lz4Constants.MaximumCopyFromDistance;
+
+        public DictionarySlice()
         {
-            _oldPositions = new ushort[Size];
-            _oldKeys = new uint[Size];
-
-            _newPositions = new ushort[Size];
-            _newKeys = new uint[Size];
+            Positions = new ushort[Size];
+            Start = -1;
         }
 
-        public int Scan(byte[] array, int index, int end, long arrayStartFilePosition)
+        public void Add(long position, uint bucket)
         {
-            int matchCount = 0;
+            while (Positions[bucket] != 0)
+            {
+                bucket = (bucket + 1) & (Size - 1);
+            }
+
+            Positions[bucket] = (ushort)(position - Start);
+        }
+
+        public void FindLongestMatch(long position, Lz4sBuffer buffer, int index, uint bucket, ref Match match, bool add)
+        {
+            while (Positions[bucket] != 0)
+            {
+                long matchPosition = (Start + Positions[bucket]);
+                long relativePosition = position - matchPosition;
+
+                int matchIndex = (int)(index - relativePosition);
+                int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Lz4Constants.MaximumTokenLength, buffer.End - index));
+
+                if (matchLength > match.Length)
+                {
+                    match.Index = matchIndex;
+                    match.Length = (ushort)matchLength;
+                }
+
+                bucket = (bucket + 1) & (Size - 1);
+            }
+
+            if (add)
+            {
+                Positions[bucket] = (ushort)(position - Start);
+            }
+        }
+
+        public void Clear(long newStartPosition)
+        {
+            Array.Clear(Positions, 0, Positions.Length);
+            Start = newStartPosition - 1;
+        }
+    }
+
+    public class Lz4sDictionary
+    {
+        private DictionarySlice _previous;
+        private DictionarySlice _current;
+        private long _nextSwap;
+
+        public Lz4sDictionary()
+        {
+            _previous = new DictionarySlice();
+            _current = new DictionarySlice();
+            _nextSwap = _current.SwapPosition;
+        }
+
+        public Token NextMatch(Lz4sBuffer buffer, long bufferFilePosition)
+        {
+            // TEMP: Return literals only
+            return new Token(Math.Min(14, buffer.Length), 0, 0);
 
             // Hash and Check Dictionary only while 4+ bytes are left in array span
-            int arrayCheckEnd = end - 3;
+            int arrayCheckEnd = buffer.End - 3;
 
-            int i = index;
+            byte[] array = buffer.Array;
+            int tokenStart = buffer.Index;
+            int i = tokenStart;
+
             while (i < arrayCheckEnd)
             {
                 uint key = (uint)((array[i] << 16) + (array[i + 1] << 8) + (array[i + 2]));
 
-                int arrayNewRelativePosition = (int)(arrayStartFilePosition - _newStart);
-                int dictSwapEnd = Constants.MaximumCopyFromDistance - arrayNewRelativePosition;
-                int innerEnd = Math.Min(dictSwapEnd, arrayCheckEnd);
+                int swapDictionaryIndex = (int)(_nextSwap - bufferFilePosition);
+                int innerEnd = Math.Min(arrayCheckEnd, swapDictionaryIndex);
 
                 while (i < innerEnd)
                 {
                     // Shift and add new byte to key
                     key = (uint)((key << 8) + array[i + 3]);
 
-                    // Hash value
-                    uint hash = Hashing.Murmur3_Mix(key);
+                    // Determine dictionary bucket for these bytes
+                    uint bucket = Hashing.Murmur3_Mix(key) & (DictionarySlice.Size - 1);
 
-                    // Find bucket
-                    uint bucket = hash & (Size - 1);
+                    // Find the longest set of bytes we can copy matching array[i]
+                    Match best = new Match();
+                    _previous.FindLongestMatch(bufferFilePosition + 1, buffer, i, bucket, ref best, add: false);
+                    _current.FindLongestMatch(bufferFilePosition + i, buffer, i, bucket, ref best, add: true);
 
-                    // Look for match
-                    bool found = false;
-
-                    while (_newPositions[bucket] != 0)
+                    if (best.Length >= Lz4Constants.MinimumCopyLength)
                     {
-                        if (_newKeys[bucket] == key)
+                        // Add array[i + 1] .. array[i + (length-1)] to the Dictionary
+                        for (int j = i + 1; j < i + best.Length; ++j)
                         {
-                            long matchAbsolutePosition = _newStart + _newPositions[bucket];
-                            int matchIndex = (int)(matchAbsolutePosition - arrayNewRelativePosition);
-
-                            // Match found
-                            matchCount++;
-                            found = true;
-                            break;
+                            key = (uint)((key << 8) + array[j + 3]);
+                            bucket = Hashing.Murmur3_Mix(key) & (DictionarySlice.Size - 1);
+                            _current.Add(bufferFilePosition + j, bucket);
                         }
 
-                        bucket = (bucket + 1) & (Size - 1);
-                    }
-
-                    // Add this position and key (over match or in first opening)
-                    _newKeys[bucket] = key;
-                    _newPositions[bucket] = (ushort)(arrayNewRelativePosition + i);
-
-                    if (!found)
-                    {
-                        // If no match in new bucket, check old bucket
-                        while (_oldPositions[bucket] != 0)
-                        {
-                            if (_oldKeys[bucket] == key)
-                            {
-                                matchCount++;
-                                found = true;
-                                break;
-                            }
-
-                            bucket = (bucket + 1) & (Size - 1);
-                        }
+                        buffer.Index = i + best.Length;
+                        return new Token(i - tokenStart, best.Length, tokenStart - best.Index);
                     }
 
                     i++;
@@ -101,107 +135,29 @@ namespace LZ4s
                 // Swap Dictionaries if we stopped due to Dictionary boundary
                 if (i < arrayCheckEnd)
                 {
-                    SwapDictionaries(arrayStartFilePosition + i);
+                    SwapDictionaries(bufferFilePosition + i);
                 }
             }
 
-            return matchCount;
+            // Return empty match (out of input)
+            return new Token();
         }
 
         private void SwapDictionaries(long newStartPosition)
         {
-            ushort[] donePositions = _oldPositions;
-            uint[] doneKeys = _oldKeys;
+            DictionarySlice swap = _previous;
+            _previous = _current;
+            _current = swap;
 
-            // Move '_new' data to '_old'
-            _oldStart = _newStart;
-            _oldPositions = _newPositions;
-            _oldKeys = _newKeys;
-
-            // Reuse previous '_old' arrays for new Dictionary
-            _newStart = newStartPosition;
-            _newPositions = donePositions;
-            _newKeys = doneKeys;
-
-            // Clear Dictionary (positions only are sufficient)
-            Array.Clear(donePositions, 0, Size);
+            _current.Clear(newStartPosition);
+            _nextSwap = _current.SwapPosition;
         }
 
         public void Clear()
         {
-            _newStart = 0;
-            _oldStart = 0;
-
-            Array.Clear(_oldPositions, 0, Size);
-            Array.Clear(_newPositions, 0, Size);
-        }
-    }
-
-    /// <summary>
-    ///  Lz4sDictionary tracks each position in the last 'MaximumCopyFromLength' in which
-    ///  four bytes in order are found. It is used to quickly find bytes which can be reused
-    ///  to compress the current data from the compressed output so far.
-    /// </summary>
-    public class Lz4sDictionary
-    {
-        private const int Size = 2 * Constants.MaximumCopyFromDistance;
-
-        private long _newStart;
-        private ushort[] _newPositions;
-        private long _oldStart;
-        private ushort[] _oldPositions;
-
-        public Lz4sDictionary()
-        {
-            _oldPositions = new ushort[Size];
-            _newPositions = new ushort[Size];
-        }
-
-        public void Add(byte[] array, int index, long position)
-        {
-            uint key = (uint)((array[index] << 24) + (array[index + 1] << 16) + (array[index + 2] << 8) + array[index + 3]);
-            uint bucket = Hashing.Murmur3_Mix(key) & (Size - 1);
-
-            // On each boundary, swap index parts and clear the current index
-            ushort relativePosition = (ushort)(position - _newStart);
-            if (relativePosition >= Constants.MaximumCopyFromDistance)
-            {
-                ushort[] old = _oldPositions;
-                _oldPositions = _newPositions;
-                _oldStart = _newStart;
-
-                _newPositions = old;
-                _newStart = position;
-                relativePosition = 0;
-                Array.Clear(_newPositions, 0, _newPositions.Length);
-            }
-
-            while (_newPositions[bucket] != 0)
-            {
-                bucket = (bucket + 1) & (Size - 1);
-            }
-
-            _newPositions[bucket] = (ushort)(relativePosition + 1);
-        }
-
-        public void Matches(byte[] array, int index, List<long> result)
-        {
-            result.Clear();
-            uint key = (uint)((array[index] << 24) + (array[index + 1] << 16) + (array[index + 2] << 8) + array[index + 3]);
-            uint bucket = Hashing.Murmur3_Mix(key) & (Size - 1);
-
-            uint oldBucket = bucket;
-            while (_oldPositions[oldBucket] != 0)
-            {
-                result.Add(_oldStart + _oldPositions[oldBucket] - 1);
-                oldBucket = (oldBucket + 1) & (Size - 1);
-            }
-
-            while (_newPositions[bucket] != 0)
-            {
-                result.Add(_newStart + _newPositions[bucket] - 1);
-                bucket = (bucket + 1) & (Size - 1);
-            }
+            _previous.Clear(0);
+            _current.Clear(0);
+            _nextSwap = _current.SwapPosition;
         }
     }
 }

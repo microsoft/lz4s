@@ -1,8 +1,7 @@
 {
   "profiles": {
     "LZ4s.Client": {
-      "commandName": "Project",
-      "commandLineArgs": "hash \"C:\\Download\\Example.10MB.json\""
+      "commandName": "Project"
     }
   }
 }
