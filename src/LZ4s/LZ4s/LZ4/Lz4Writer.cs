@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace LZ4s
 {
@@ -20,10 +21,7 @@ namespace LZ4s
             _closeStream = closeStream;
 
             _uncompressedBuffer = new Lz4sBuffer();
-
             _compressedBuffer = new Lz4sBuffer();
-            //_compressedBuffer.Append(Constants.Preamble, 0, Constants.Preamble.Length);
-
             _dictionary = new Lz4sDictionary();
         }
 
@@ -78,6 +76,12 @@ namespace LZ4s
                 _compressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
             }
 
+#if DEBUG
+            string literal = Encoding.UTF8.GetString(array, index, token.LiteralLength);
+            string copy = Encoding.UTF8.GetString(array, index + token.LiteralLength, token.CopyLength);
+            string copySource = Encoding.UTF8.GetString(array, index + token.LiteralLength - token.CopyFromRelativeIndex, token.CopyLength);
+#endif
+
             _compressedBuffer.Append(token.LiteralLength);
             _compressedBuffer.Append(token.CopyLength);
 
@@ -102,13 +106,13 @@ namespace LZ4s
             CompressBuffer();
 
             // Write the last bytes of the compressed buffer as a literal
-            if (_compressedBuffer.Length > 0)
+            if (_uncompressedBuffer.Length > 0)
             {
                 WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, new Token(_uncompressedBuffer.Length, 0, 0));
             }
 
             // Zero token to indicate end of content
-            WriteToken(null, 0, new Token(0, 0, 0));
+            WriteToken(_uncompressedBuffer.Array, 0, new Token(0, 0, 0));
 
             // Write everything
             _compressedBuffer.Write(_stream);

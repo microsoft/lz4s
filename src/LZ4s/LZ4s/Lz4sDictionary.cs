@@ -46,7 +46,7 @@ namespace LZ4s
                 long relativePosition = position - matchPosition;
 
                 int matchIndex = (int)(index - relativePosition);
-                int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Lz4Constants.MaximumTokenLength, buffer.End - index));
+                int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumTokenLength, buffer.End - index), index - matchIndex));
 
                 if (matchLength > match.Length)
                 {
@@ -86,7 +86,7 @@ namespace LZ4s
         public Token NextMatch(Lz4sBuffer buffer, long bufferFilePosition)
         {
             // TEMP: Return literals only
-            return new Token(Math.Min(14, buffer.Length), 0, 0);
+            //return new Token(Math.Min(14, buffer.Length), 0, 0);
 
             // Hash and Check Dictionary only while 4+ bytes are left in array span
             int arrayCheckEnd = buffer.End - 3;
@@ -125,8 +125,7 @@ namespace LZ4s
                             _current.Add(bufferFilePosition + j, bucket);
                         }
 
-                        buffer.Index = i + best.Length;
-                        return new Token(i - tokenStart, best.Length, tokenStart - best.Index);
+                        return new Token(i - tokenStart, best.Length, i - best.Index);
                     }
 
                     i++;

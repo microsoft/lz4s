@@ -21,11 +21,6 @@ namespace LZ4s
 
             _compressedBuffer.Read(stream);
             _endOfData = (_compressedBuffer.Length == 0);
-
-            //if (!HasPreamble())
-            //{
-            //    throw new IOException("Stream does not start with required LZ4s preamble.");
-            //}
         }
 
         public int Read(byte[] array, int index, int length)
@@ -69,8 +64,6 @@ namespace LZ4s
             if (_compressedBuffer.Length < 2) { return false; }
 
             byte[] source = _compressedBuffer.Array;
-            int tokenStart = _compressedBuffer.Index;
-
             byte literalLength = source[_compressedBuffer.Index];
             byte copyLength = source[_compressedBuffer.Index + 1];
 
@@ -92,7 +85,7 @@ namespace LZ4s
                 ushort copyFromOffset = (ushort)(source[_compressedBuffer.Index] + (source[_compressedBuffer.Index + 1] << 8));
                 _compressedBuffer.Index += 2;
 
-                Helpers.ArrayCopy(source, tokenStart - copyFromOffset, array, index, copyLength);
+                Helpers.ArrayCopy(array, index - copyFromOffset, array, index, copyLength);
                 index += copyLength;
             }
 
@@ -105,22 +98,6 @@ namespace LZ4s
             {
                 return true;
             }
-        }
-
-        private bool HasPreamble()
-        {
-            if (_compressedBuffer.Length < Lz4Constants.Preamble.Length) { return false; }
-
-            for (int i = 0; i < Lz4Constants.Preamble.Length; ++i)
-            {
-                if (_compressedBuffer.Array[i] != Lz4Constants.Preamble[i])
-                {
-                    return false;
-                }
-            }
-
-            _compressedBuffer.Index += Lz4Constants.Preamble.Length;
-            return true;
         }
 
         public void Dispose()
