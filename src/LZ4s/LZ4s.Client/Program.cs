@@ -7,7 +7,7 @@ namespace LZ4s.Client
         static void Main(string[] args)
         {
             string mode = (args.Length > 0 ? args[0] : "compressfolder");
-            string targetPath = (args.Length > 1 ? args[1] : @"C:\Download\LZ4S_Content");
+            string targetPath = (args.Length > 1 ? args[1] : @"C:\Download\LZ4S_Content\Silesia");
 
             switch(mode.ToLowerInvariant())
             {

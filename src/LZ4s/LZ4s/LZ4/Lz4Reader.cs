@@ -66,28 +66,31 @@ namespace LZ4s
 
         private bool ReadToken(byte[] array, ref int index, int end)
         {
+            if (_compressedBuffer.Length < 2) { return false; }
+
             byte[] source = _compressedBuffer.Array;
             int tokenStart = _compressedBuffer.Index;
 
-            byte marker = source[_compressedBuffer.Index++];
+            byte literalLength = source[_compressedBuffer.Index];
+            byte copyLength = source[_compressedBuffer.Index + 1];
 
-            int literalLength = (marker >> 4);
-            int copyLength = (marker & 15);
-
-            literalLength = ReadLength(literalLength);
+            // If token not fully in compressed buffer, stop
+            int compressedLength = 2 + literalLength + (copyLength > 0 ? 2 : 0);
+            if (_compressedBuffer.Length < compressedLength)
+            {
+                return false;
+            }
 
             // Read literal bytes
-            Helpers.ArrayCopy(source, _compressedBuffer.Index, array, index, literalLength);
+            Helpers.ArrayCopy(source, _compressedBuffer.Index + 2, array, index, literalLength);
             index += literalLength;
-            _compressedBuffer.Index += literalLength;
+            _compressedBuffer.Index += 2 + literalLength;
 
             // Read copied bytes
             if (copyLength > 0)
             {
                 ushort copyFromOffset = (ushort)(source[_compressedBuffer.Index] + (source[_compressedBuffer.Index + 1] << 8));
                 _compressedBuffer.Index += 2;
-
-                copyLength = ReadLength(copyLength);
 
                 Helpers.ArrayCopy(source, tokenStart - copyFromOffset, array, index, copyLength);
                 index += copyLength;
@@ -102,22 +105,6 @@ namespace LZ4s
             {
                 return true;
             }
-        }
-
-        private int ReadLength(int initialLength)
-        {
-            if (initialLength > 14)
-            {
-                byte next;
-
-                do
-                {
-                    next = _compressedBuffer.Array[_compressedBuffer.Index++];
-                    initialLength += next;
-                } while (next == 255);
-            }
-
-            return initialLength;
         }
 
         private bool HasPreamble()

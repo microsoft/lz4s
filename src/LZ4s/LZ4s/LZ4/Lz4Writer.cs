@@ -51,7 +51,7 @@ namespace LZ4s
         {
             while (_uncompressedBuffer.Length > Lz4Constants.MinimumCopyLength)
             {
-               Token token = _dictionary.NextMatch(_uncompressedBuffer, _uncompressedBufferFilePosition);
+                Token token = _dictionary.NextMatch(_uncompressedBuffer, _uncompressedBufferFilePosition);
 
                 if (token.DecompressedLength > 0)
                 {
@@ -78,14 +78,8 @@ namespace LZ4s
                 _compressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
             }
 
-            int literalLengthLeft = token.LiteralLength;
-            int copyLengthLeft = token.CopyLength;
-
-            // Write a shared byte with literal and copy length parts
-            WriteMarker(ref literalLengthLeft, ref copyLengthLeft);
-
-            // Write remaining literal length
-            WriteLength(literalLengthLeft, token.LiteralLength);
+            _compressedBuffer.Append(token.LiteralLength);
+            _compressedBuffer.Append(token.CopyLength);
 
             // Write literal bytes
             if (token.LiteralLength > 0)
@@ -99,45 +93,20 @@ namespace LZ4s
                 // Write copy relative position
                 _compressedBuffer.Append((byte)token.CopyFromRelativeIndex);
                 _compressedBuffer.Append((byte)(token.CopyFromRelativeIndex >> 8));
-
-                // Write remaining copy length
-                WriteLength(copyLengthLeft, token.CopyLength);
             }
-        }
-
-        private void WriteMarker(ref int literalLengthLeft, ref int copyLengthLeft)
-        {
-            int marker = 0;
-
-            int markerLiteralLength = (literalLengthLeft >= 15 ? 15 : literalLengthLeft);
-            marker += markerLiteralLength << 4;
-            literalLengthLeft -= markerLiteralLength;
-
-            int markerCopyLength = (copyLengthLeft >= 15 ? 15 : copyLengthLeft);
-            marker += markerCopyLength;
-            copyLengthLeft -= markerCopyLength;
-
-            _compressedBuffer.Append((byte)marker);
-        }
-
-        private void WriteLength(int length, int originalLength)
-        {
-            // If marker wasn't maxed out, no additional bytes needed
-            if (originalLength < 15) { return; }
-
-            // Write any remaining maximum value bytes
-            while (length >= 255)
-            {
-                _compressedBuffer.Append(255);
-                length -= 255;
-            }
-
-            // Write final length byte
-            _compressedBuffer.Append((byte)length);
         }
 
         private void Close()
         {
+            // Compress remaining pending content
+            CompressBuffer();
+
+            // Write the last bytes of the compressed buffer as a literal
+            if (_compressedBuffer.Length > 0)
+            {
+                WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, new Token(_uncompressedBuffer.Length, 0, 0));
+            }
+
             // Zero token to indicate end of content
             WriteToken(null, 0, new Token(0, 0, 0));
 
