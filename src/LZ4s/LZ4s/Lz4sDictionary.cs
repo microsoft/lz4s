@@ -89,7 +89,7 @@ namespace LZ4s
             //return new Token(Math.Min(14, buffer.Length), 0, 0);
 
             // Hash and Check Dictionary only while 4+ bytes are left in array span
-            int arrayCheckEnd = buffer.End - 3;
+            int arrayCheckEnd = Math.Min(buffer.End - 3, buffer.Index + Lz4Constants.MaximumTokenLength);
 
             byte[] array = buffer.Array;
             int tokenStart = buffer.Index;
@@ -131,14 +131,19 @@ namespace LZ4s
                     i++;
                 }
 
-                // Swap Dictionaries if we stopped due to Dictionary boundary
-                if (i < arrayCheckEnd)
+                if (i == swapDictionaryIndex)
                 {
+                    // If stopped at dictionary boundary, swap dictionaries
                     SwapDictionaries(bufferFilePosition + i);
+                }
+                else if (i < buffer.End - 3)
+                {
+                    // If stopped at maximum literal length, write max length literal
+                    return new Token(i - tokenStart, 0, 0);
                 }
             }
 
-            // Return empty match (out of input)
+            // If stopped at end of source buffer, indicate via empty token
             return new Token();
         }
 
