@@ -4,7 +4,7 @@ using System.Text;
 
 namespace LZ4s
 {
-    public class Lz4Writer : IDisposable
+    public class Lz4Writer : IByteWriter, IDisposable
     {
         private Stream _stream;
         private bool _closeStream;

@@ -3,7 +3,7 @@ using System.IO;
 
 namespace LZ4s
 {
-    public class Lz4sWriter : IDisposable
+    public class Lz4sWriter : IByteWriter, IDisposable
     {
         private Stream _stream;
         private bool _closeStream;

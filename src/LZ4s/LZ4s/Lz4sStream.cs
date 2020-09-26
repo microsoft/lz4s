@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace LZ4s
 {
@@ -6,17 +7,47 @@ namespace LZ4s
     {
         // TODO: Inherit stream, wrap Reader/Writer
 
-        public static void Compress(string sourceFilePath, string lz4sPath, byte[] buffer = null)
+        private static IByteWriter BuildWriter(string filePath)
         {
-            Compress(File.OpenRead(sourceFilePath), File.Create(lz4sPath), buffer);
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+            switch(extension)
+            {
+                case ".lz4s":
+                    return new Lz4sWriter(File.Create(filePath));
+                case ".lz4":
+                    return new Lz4Writer(File.Create(filePath));
+                default:
+                    throw new NotImplementedException($"Lz4sStream does not know how to build writer for extension '{extension}'");
+            }
         }
 
-        public static void Compress(Stream source, Stream lz4sDestination, byte[] buffer = null)
+        private static IByteReader BuildReader(string filePath)
+        {
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+            switch (extension)
+            {
+                case ".lz4s":
+                    return new Lz4sReader(File.OpenRead(filePath));
+                case ".lz4":
+                    return new Lz4Reader(File.OpenRead(filePath));
+                default:
+                    throw new NotImplementedException($"Lz4sStream does not know how to build reader for extension '{extension}'");
+            }
+        }
+
+        public static void Compress(string sourceFilePath, string compressedPath, byte[] buffer = null)
+        {
+            Compress(File.OpenRead(sourceFilePath), BuildWriter(compressedPath), buffer);
+        }
+
+        private static void Compress(Stream source, IByteWriter writer, byte[] buffer = null)
         {
             buffer ??= new byte[Constants.BufferSize];
 
             using (source)
-            using (Lz4sWriter writer = new Lz4sWriter(lz4sDestination))
+            using (writer)
             {
                 while (true)
                 {
@@ -28,17 +59,17 @@ namespace LZ4s
             }
         }
 
-        public static void Decompress(string lz4sPath, string destinationFilePath, byte[] buffer = null)
+        public static void Decompress(string compressedPath, string destinationFilePath, byte[] buffer = null)
         {
-            Decompress(File.OpenRead(lz4sPath), File.Create(destinationFilePath), buffer);
+            Decompress(BuildReader(compressedPath), File.Create(destinationFilePath), buffer);
         }
 
-        public static void Decompress(Stream lz4sSource, Stream destination, byte[] buffer = null)
+        private static void Decompress(IByteReader reader, Stream destination, byte[] buffer = null)
         {
             buffer ??= new byte[Constants.BufferSize];
 
             using (destination)
-            using (Lz4sReader reader = new Lz4sReader(lz4sSource))
+            using (reader)
             {
                 while (true)
                 {

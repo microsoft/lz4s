@@ -14,18 +14,26 @@ namespace LZ4s.Client
 
         private readonly byte[] Buffer;
         private readonly string FolderPath;
-        private readonly string Lz4sFolder;
+        private readonly string CompressedFolder;
         private readonly string OutFolder;
+        private readonly string Extension;
 
-        public CompressionTester(string folderPath)
+        private bool AnyFailures;
+        private long UncompressedTotalBytes;
+        private long CompressedTotalBytes;
+        private TimeSpan CompressionTotalTime;
+        private TimeSpan DecompressionTotalTime;
+
+        public CompressionTester(string folderPath, string extension)
         {
             Buffer = new byte[Lz4Constants.BufferSize];
             FolderPath = folderPath;
+            Extension = extension;
 
-            Lz4sFolder = Path.Combine(folderPath, "LZ4s");
+            CompressedFolder = Path.Combine(folderPath, extension);
             OutFolder = Path.Combine(folderPath, "Out");
 
-            Directory.CreateDirectory(Lz4sFolder);
+            Directory.CreateDirectory(CompressedFolder);
             Directory.CreateDirectory(OutFolder);
         }
 
@@ -34,14 +42,23 @@ namespace LZ4s.Client
             Console.WriteLine($"Pass?\t{Units}\t{Units}/s\t=>\t{Units}\tRatio\t=>\t{Units}/s\tName");
         }
 
+        public void WriteFooter()
+        {
+            Console.WriteLine("===================================================================================================");
+            Console.WriteLine($"{(AnyFailures ? "FAIL" : "PASS")}\t{(UncompressedTotalBytes / UnitBytes):n2}\t{UncompressedTotalBytes / (UnitBytes * CompressionTotalTime.TotalSeconds):n0}\t=>\t{CompressedTotalBytes / UnitBytes:n2}\t{(1 - ((double)CompressedTotalBytes) / UncompressedTotalBytes):p0}\t=>\t{UncompressedTotalBytes / (UnitBytes * DecompressionTotalTime.TotalSeconds):n0}\t{Extension.ToUpperInvariant()}");
+        }
+
         public void RoundTripFile(FileInfo file, int decompressIterations = 1)
         {
-            string compressedPath = Path.Combine(Lz4sFolder, file.Name + ".lz4s");
+            string compressedPath = Path.Combine(CompressedFolder, file.Name + "." + Extension);
             string outPath = Path.Combine(OutFolder, file.Name);
 
             Stopwatch cw = Stopwatch.StartNew();
             Lz4sStream.Compress(file.FullName, compressedPath, Buffer);
             cw.Stop();
+
+            CompressionTotalTime += cw.Elapsed;
+            UncompressedTotalBytes += file.Length;
 
             Stopwatch dw = Stopwatch.StartNew();
             for (int i = 0; i < decompressIterations; ++i)
@@ -50,66 +67,39 @@ namespace LZ4s.Client
             }
             dw.Stop();
 
+            long compressedLength = new FileInfo(compressedPath).Length;
+            DecompressionTotalTime += (dw.Elapsed / decompressIterations);
+            CompressedTotalBytes += compressedLength;
+
             if (!Lz4sStream.VerifyBytesEqual(file.FullName, outPath, out string errorMessage))
             {
+                AnyFailures = true;
                 Console.WriteLine($"FAIL '{file.Name}: {errorMessage}");
             }
             else
             {
-                long compressedLength = new FileInfo(compressedPath).Length;
                 Console.WriteLine($"PASS\t{(file.Length / UnitBytes):n2}\t{file.Length / (UnitBytes * cw.Elapsed.TotalSeconds):n0}\t=>\t{compressedLength / UnitBytes:n2}\t{(1 - ((double)compressedLength) / file.Length):p0}\t=>\t{decompressIterations * file.Length / (UnitBytes * dw.Elapsed.TotalSeconds):n0}\t{file.Name}");
             }
         }
 
-        public static void CompressFolder(string folderPath)
+        public static void CompressFolder(string folderPath, string extension)
         {
-            CompressionTester tester = new CompressionTester(folderPath);
+            CompressionTester tester = new CompressionTester(folderPath, extension);
 
             tester.WriteHeader();
             foreach (FileInfo file in new DirectoryInfo(folderPath).GetFiles())
             {
                 tester.RoundTripFile(file, decompressIterations: 10);
             }
+            tester.WriteFooter();
         }
 
-        public static void DecompressionPerformance(string filePath, int decompressIterations)
+        public static void DecompressionPerformance(string filePath, string extension, int decompressIterations)
         {
-            CompressionTester tester = new CompressionTester(Path.GetDirectoryName(filePath));
+            CompressionTester tester = new CompressionTester(Path.GetDirectoryName(filePath), extension);
 
             tester.WriteHeader();
             tester.RoundTripFile(new FileInfo(filePath), decompressIterations: decompressIterations);
-        }
-
-        public static void HashPerformance(string filePath, int hashIterations)
-        {
-            //    Lz4sDictionary dictionary = new Lz4sDictionary();
-            //    byte[] buffer = new byte[Constants.BufferSize];
-
-            //    using (Stream stream = OpenFile(filePath, preloadIntoMemory: true))
-            //    {
-            //        Stopwatch w = Stopwatch.StartNew();
-
-            //        for (int i = 0; i < hashIterations; ++i)
-            //        {
-            //            dictionary.Clear();
-            //            stream.Seek(0, SeekOrigin.Begin);
-
-            //            long position = 0;
-            //            int matchCount = 0;
-
-            //            while (true)
-            //            {
-            //                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-            //                if (bytesRead == 0) { break; }
-
-            //                matchCount += dictionary.Scan(buffer, 0, bytesRead, position);
-            //                position += bytesRead;
-            //            }
-            //        }
-
-            //        w.Stop();
-            //        Console.WriteLine($"Hashed {stream.Length * hashIterations / UnitBytes:n0} {Units} in {w.Elapsed.TotalSeconds:n3} sec. ({stream.Length * hashIterations / (UnitBytes * w.Elapsed.TotalSeconds):n0} {Units}/s)");
-            //    }
         }
 
         private static Stream OpenFile(string filePath, bool preloadIntoMemory)
