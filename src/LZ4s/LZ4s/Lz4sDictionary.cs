@@ -46,7 +46,7 @@ namespace LZ4s
                 long relativePosition = position - matchPosition;
 
                 int matchIndex = (int)(index - relativePosition);
-                int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumTokenLength, buffer.End - index), index - matchIndex));
+                int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumLiteralOrCopyLength, buffer.End - index), index - matchIndex));
 
                 if (matchLength > match.Length)
                 {
@@ -86,10 +86,15 @@ namespace LZ4s
         public Token NextMatch(Lz4sBuffer buffer, long bufferFilePosition)
         {
             // TEMP: Return literals only
-            //return new Token(Math.Min(14, buffer.Length), 0, 0);
+            //return new Token(Math.Min(255, buffer.Length), 0, 0);
 
             // Hash and Check Dictionary only while 4+ bytes are left in array span
-            int arrayCheckEnd = Math.Min(buffer.End - 3, buffer.Index + Lz4Constants.MaximumTokenLength);
+            int arrayCheckEnd = Math.Min(buffer.End - 3, buffer.Index + Lz4Constants.MaximumLiteralOrCopyLength);
+
+            // Look for bytes to copy until first of:
+            //  - Dictionary swap needed
+            //  - Input buffer within MaxTokenLength of capacity (out-of-bounds risk)
+            //  - Input buffer out of input (end of input)
 
             byte[] array = buffer.Array;
             int tokenStart = buffer.Index;
@@ -118,11 +123,25 @@ namespace LZ4s
                     if (best.Length >= Lz4Constants.MinimumCopyLength)
                     {
                         // Add array[i + 1] .. array[i + (length-1)] to the Dictionary
-                        for (int j = i + 1; j < i + best.Length; ++j)
+                        int j = i + 1;
+                        int addToDictionaryEnd = Math.Min(arrayCheckEnd, i + best.Length);
+
+                        while (j < addToDictionaryEnd)
                         {
-                            key = (uint)((key << 8) + array[j + 3]);
-                            bucket = Hashing.Murmur3_Mix(key) & (DictionarySlice.Size - 1);
-                            _current.Add(bufferFilePosition + j, bucket);
+                            int stop = Math.Min(addToDictionaryEnd, swapDictionaryIndex);
+                            while (j < stop)
+                            {
+                                key = (uint)((key << 8) + array[j + 3]);
+                                bucket = Hashing.Murmur3_Mix(key) & (DictionarySlice.Size - 1);
+                                _current.Add(bufferFilePosition + j, bucket);
+                                j++;
+                            }
+
+                            if (j >= swapDictionaryIndex)
+                            {
+                                SwapDictionaries(bufferFilePosition + j);
+                                swapDictionaryIndex = (int)(_nextSwap - bufferFilePosition);
+                            }
                         }
 
                         return new Token(i - tokenStart, best.Length, i - best.Index);
@@ -131,10 +150,11 @@ namespace LZ4s
                     i++;
                 }
 
-                if (i == swapDictionaryIndex)
+                if (i >= swapDictionaryIndex)
                 {
                     // If stopped at dictionary boundary, swap dictionaries
                     SwapDictionaries(bufferFilePosition + i);
+                    swapDictionaryIndex = (int)(_nextSwap - bufferFilePosition);
                 }
                 else if (i < buffer.End - 3)
                 {

@@ -69,7 +69,7 @@ namespace LZ4s
             return lengthToWrite;
         }
 
-        public void Shift(int bytesBeforeIndexToKeep = 0)
+        public int Shift(int bytesBeforeIndexToKeep = 0)
         {
             // When unable to decode more, shift bytes and read to refill buffer.
             // Must keep bytes between _bufferIndex and _bufferEnd, plus MaxCopyFromDistance before _bufferIndex.
@@ -88,7 +88,12 @@ namespace LZ4s
                 Buffer.BlockCopy(Array, keepFromIndex, Array, 0, keepLength);
                 Index -= keepFromIndex;
                 End = keepLength;
+
+                // Return shift amount (keepFromIndex -> 0)
+                return keepFromIndex;
             }
+
+            return 0;
         }
     }
 }

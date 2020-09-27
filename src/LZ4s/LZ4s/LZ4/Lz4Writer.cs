@@ -47,24 +47,18 @@ namespace LZ4s
 
         private void CompressBuffer()
         {
-            while (_uncompressedBuffer.Length > Lz4Constants.MinimumCopyLength)
+            // Identify and write tokens until out of input
+            while (true)
             {
                 Token token = _dictionary.NextMatch(_uncompressedBuffer, _uncompressedBufferFilePosition);
+                if (token.DecompressedLength == 0) { break; }
 
-                if (token.DecompressedLength > 0)
-                {
-                    WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, token);
-                    _uncompressedBuffer.Index += token.DecompressedLength;
-                }
-                else
-                {
-                    break;
-                }
+                WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, token);
+                _uncompressedBuffer.Index += token.DecompressedLength;
             }
 
             // Shift the uncompressed buffer to make space to read more
-            _uncompressedBufferFilePosition += Math.Max(0, _uncompressedBuffer.Length - Lz4Constants.MaximumCopyFromDistance);
-            _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
+            _uncompressedBufferFilePosition += _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
         }
 
         private void WriteToken(byte[] array, int index, Token token)
