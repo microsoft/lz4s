@@ -3,34 +3,36 @@ using System.IO;
 
 namespace LZ4s
 {
-    public class Lz4sBuffer
+    /// <summary>
+    ///  FileBuffer holds a buffer of a portion of a file, and tracks
+    ///  data read (added) and used (consumed) from the buffer.
+    /// </summary>
+    public class FileBuffer
     {
+        // Array with a portion of file contents
         public byte[] Array;
+
+        // Next index to be consumed in array (valid but not used up)
         public int Index;
+
+        // First index not valid in array (no data read into here yet)
         public int End;
 
+        // Absolute file position corresponding to Array[0].
+        public long ArrayStartPosition;
+
+        public long Position => ArrayStartPosition + Index;
+        
         public int Length => End - Index;
         public int RemainingSpace => Array.Length - End;
+        public int Capacity => Array.Length;
 
-        public Lz4sBuffer(byte[] array = null, int index = 0, int end = 0)
+        public FileBuffer(byte[] array = null)
         {
             Array = array ?? new byte[Lz4Constants.BufferSize];
-            Index = index;
-            End = end;
         }
 
-        public void Append(byte[] array, int index, int length)
-        {
-            Helpers.ArrayCopy(array, index, Array, End, length);
-            End += length;
-        }
-
-        public void Append(byte value)
-        {
-            Array[End++] = value;
-        }
-
-        public int Read(Stream stream)
+        public int AppendFrom(Stream stream)
         {
             int lengthRead = stream.Read(Array, End, Array.Length - End);
             End += lengthRead;
@@ -38,7 +40,7 @@ namespace LZ4s
             return lengthRead;
         }
 
-        public int Read(byte[] array, int index, int length)
+        public int AppendFrom(byte[] array, int index, int length)
         {
             int lengthToRead = Math.Min(Array.Length - End, length);
 
@@ -48,8 +50,12 @@ namespace LZ4s
             return lengthToRead;
         }
 
+        public void Append(byte value)
+        {
+            Array[End++] = value;
+        }
 
-        public int Write(Stream stream, int bytesToKeep = 0)
+        public int WriteTo(Stream stream, int bytesToKeep = 0)
         {
             int lengthToWrite = Math.Max(0, Length - bytesToKeep);
 
@@ -59,7 +65,7 @@ namespace LZ4s
             return lengthToWrite;
         }
 
-        public int Write(byte[] array, int index, int length)
+        public int WriteTo(byte[] array, int index, int length)
         {
             int lengthToWrite = Math.Min(Length, length);
 
@@ -69,7 +75,7 @@ namespace LZ4s
             return lengthToWrite;
         }
 
-        public int Shift(int bytesBeforeIndexToKeep = 0)
+        public void Shift(int bytesBeforeIndexToKeep = 0)
         {
             // When unable to decode more, shift bytes and read to refill buffer.
             // Must keep bytes between _bufferIndex and _bufferEnd, plus MaxCopyFromDistance before _bufferIndex.
@@ -89,11 +95,9 @@ namespace LZ4s
                 Index -= keepFromIndex;
                 End = keepLength;
 
-                // Return shift amount (keepFromIndex -> 0)
-                return keepFromIndex;
+                // Track the absolute position of the array start (the sum of all shifting we've done)
+                ArrayStartPosition += keepFromIndex;
             }
-
-            return 0;
         }
     }
 }

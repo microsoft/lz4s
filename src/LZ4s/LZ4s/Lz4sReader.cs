@@ -10,17 +10,17 @@ namespace LZ4s
         private bool _endOfData;
 
         // NEXT: Rewrite in terms of buffers. Use uncompressed buffer to avoid need for bounds checks when decoding.
-        private Lz4sBuffer _compressedBuffer;
-        private Lz4sBuffer _uncompressedBuffer;
+        private FileBuffer _compressedBuffer;
+        private FileBuffer _uncompressedBuffer;
 
         public Lz4sReader(Stream stream, bool closeStream = true, byte[] compressedBuffer = null, byte[] uncompressedBuffer = null)
         {
             _stream = stream;
             _closeStream = closeStream;
-            _compressedBuffer = new Lz4sBuffer(compressedBuffer);
-            _uncompressedBuffer = new Lz4sBuffer(uncompressedBuffer);
+            _compressedBuffer = new FileBuffer(compressedBuffer);
+            _uncompressedBuffer = new FileBuffer(uncompressedBuffer);
 
-            _compressedBuffer.Read(stream);
+            _compressedBuffer.AppendFrom(stream);
             _endOfData = (_compressedBuffer.Length == 0);
 
             if (!HasPreamble())
@@ -46,7 +46,7 @@ namespace LZ4s
                 }
 
                 // Copy what we have to the output array
-                int bytesRead = _uncompressedBuffer.Write(array, index, length);
+                int bytesRead = _uncompressedBuffer.WriteTo(array, index, length);
                 index += bytesRead;
                 length -= bytesRead;
                 totalRead += bytesRead;
@@ -57,7 +57,7 @@ namespace LZ4s
                 // Otherwise, make buffer space and read more from the file
                 _uncompressedBuffer.Shift();
                 _compressedBuffer.Shift(Constants.MaximumCopyFromDistance);
-                int readFromFile = _compressedBuffer.Read(_stream);
+                int readFromFile = _compressedBuffer.AppendFrom(_stream);
                 _endOfData = (readFromFile == 0);
             }
 

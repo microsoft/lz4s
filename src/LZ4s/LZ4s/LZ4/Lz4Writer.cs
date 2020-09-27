@@ -9,20 +9,20 @@ namespace LZ4s
         private Stream _stream;
         private bool _closeStream;
 
-        private Lz4sBuffer _uncompressedBuffer;
-        private long _uncompressedBufferFilePosition;
+        private FileBuffer _uncompressedBuffer;
+        private FileBuffer _compressedBuffer;
 
-        private Lz4sBuffer _compressedBuffer;
-        private Lz4sDictionary _dictionary;
+        private MatchTable _matchTable;
 
         public Lz4Writer(Stream stream, bool closeStream = true)
         {
             _stream = stream;
             _closeStream = closeStream;
 
-            _uncompressedBuffer = new Lz4sBuffer();
-            _compressedBuffer = new Lz4sBuffer();
-            _dictionary = new Lz4sDictionary();
+            _uncompressedBuffer = new FileBuffer();
+            _compressedBuffer = new FileBuffer();
+
+            _matchTable = new MatchTable();
         }
 
         public void Write(byte[] array, int index, int length)
@@ -35,7 +35,7 @@ namespace LZ4s
             while (index < end)
             {
                 // Fill uncompressed buffer from input
-                index += _uncompressedBuffer.Read(array, index, end - index);
+                index += _uncompressedBuffer.AppendFrom(array, index, end - index);
 
                 // If uncompressed buffer full, compress, shift, clear
                 if (index < end)
@@ -47,26 +47,68 @@ namespace LZ4s
 
         private void CompressBuffer()
         {
-            // Identify and write tokens until out of input
-            while (true)
-            {
-                Token token = _dictionary.NextMatch(_uncompressedBuffer, _uncompressedBufferFilePosition);
-                if (token.DecompressedLength == 0) { break; }
+            // Identify and write tokens until near end of input buffer or at end of data
+            int inputEnd = Math.Min(_uncompressedBuffer.Array.Length - Lz4Constants.MaximumTokenUncompressedLength, _uncompressedBuffer.End - Lz4Constants.MinimumCopyLength);
 
-                WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, token);
-                _uncompressedBuffer.Index += token.DecompressedLength;
+            byte[] array = _uncompressedBuffer.Array;
+            int i = _uncompressedBuffer.Index;
+
+            if (i >= inputEnd) { return; }
+
+            // Load first three bytes of array into key 
+            uint key = (uint)((array[i] << 16) + (array[i + 1] << 8) + (array[i + 2]));
+
+            while (i < inputEnd)
+            {
+                int tokenStart = i;
+                int innerEnd = Math.Min(inputEnd, tokenStart + Lz4Constants.MaximumLiteralOrCopyLength);
+
+                while (i < innerEnd)
+                {
+                    // Shift and add new byte to key (key is now first four bytes at tokenStart)
+                    key = (uint)((key << 8) + array[i + 3]);
+
+                    // Find the longest range matching array[tokenStart] we can copy from earlier
+                    Match best = _matchTable.FindLongestMatch(_uncompressedBuffer, i, key);
+
+                    if (best.Length >= Lz4Constants.MinimumCopyLength)
+                    {
+                        // Add array[i + 1] .. array[i + (length-1)] to the Dictionary
+                        for (int j = i + 1; j < i + best.Length; ++j)
+                        {
+                            _matchTable.Add(_uncompressedBuffer.ArrayStartPosition + j, key);
+                        }
+
+                        long copyToPosition = _uncompressedBuffer.ArrayStartPosition + i;
+
+                        WriteToken(new Token(i - tokenStart, best.Length, (ushort)(copyToPosition - best.Position)));
+                        i += best.Length;
+                        break;
+                    }
+
+                    i++;
+                }
+
+                if (_uncompressedBuffer.Index == tokenStart && i >= tokenStart + Lz4Constants.MaximumLiteralOrCopyLength)
+                {
+                    // If stopped at maximum literal length, write max length literal
+                    WriteToken(new Token(i - tokenStart, 0, 0));
+                }
             }
 
-            // Shift the uncompressed buffer to make space to read more
-            _uncompressedBufferFilePosition += _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
+            // If out of input, shift the uncompressed buffer to make space to read more
+            _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
         }
 
-        private void WriteToken(byte[] array, int index, Token token)
+        private void WriteToken(Token token)
         {
+            byte[] array = _uncompressedBuffer.Array;
+            int index = _uncompressedBuffer.Index;
+
             // Flush buffer if too full for token
             if (token.CompressedLength > _compressedBuffer.RemainingSpace)
             {
-                _compressedBuffer.Write(_stream, Lz4Constants.MaximumCopyFromDistance);
+                _compressedBuffer.WriteTo(_stream, Lz4Constants.MaximumCopyFromDistance);
                 _compressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
             }
 
@@ -82,7 +124,7 @@ namespace LZ4s
             // Write literal bytes
             if (token.LiteralLength > 0)
             {
-                _compressedBuffer.Append(array, index, token.LiteralLength);
+                _compressedBuffer.AppendFrom(array, index, token.LiteralLength);
             }
 
             // If copy bytes...
@@ -92,6 +134,9 @@ namespace LZ4s
                 _compressedBuffer.Append((byte)token.CopyFromRelativeIndex);
                 _compressedBuffer.Append((byte)(token.CopyFromRelativeIndex >> 8));
             }
+
+            // Mark the bytes of this token consumed
+            _uncompressedBuffer.Index += token.LiteralLength + token.CopyLength;
         }
 
         private void Close()
@@ -102,14 +147,14 @@ namespace LZ4s
             // Write the last bytes of the compressed buffer as a literal
             if (_uncompressedBuffer.Length > 0)
             {
-                WriteToken(_uncompressedBuffer.Array, _uncompressedBuffer.Index, new Token(_uncompressedBuffer.Length, 0, 0));
+                WriteToken(new Token(_uncompressedBuffer.Length, 0, 0));
             }
 
             // Zero token to indicate end of content
-            WriteToken(_uncompressedBuffer.Array, 0, new Token(0, 0, 0));
+            WriteToken(new Token(0, 0, 0));
 
             // Write everything
-            _compressedBuffer.Write(_stream);
+            _compressedBuffer.WriteTo(_stream);
         }
 
         public void Dispose()

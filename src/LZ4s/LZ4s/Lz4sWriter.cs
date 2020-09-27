@@ -7,14 +7,14 @@ namespace LZ4s
     {
         private Stream _stream;
         private bool _closeStream;
-        private Lz4sBuffer _compressedBuffer;
+        private FileBuffer _compressedBuffer;
 
         public Lz4sWriter(Stream stream, bool closeStream = true, byte[] buffer = null)
         {
             _stream = stream;
             _closeStream = closeStream;
-            _compressedBuffer = new Lz4sBuffer(buffer);
-            _compressedBuffer.Append(Constants.Preamble, 0, Constants.Preamble.Length);
+            _compressedBuffer = new FileBuffer(buffer);
+            _compressedBuffer.AppendFrom(Constants.Preamble, 0, Constants.Preamble.Length);
         }
 
         public void Write(byte[] array, int index, int length)
@@ -106,7 +106,7 @@ namespace LZ4s
             // Flush buffer if too full for token
             if (token.CompressedLength > _compressedBuffer.RemainingSpace)
             {
-                _compressedBuffer.Write(_stream, Constants.MaximumCopyFromDistance);
+                _compressedBuffer.WriteTo(_stream, Constants.MaximumCopyFromDistance);
                 _compressedBuffer.Shift(Constants.MaximumCopyFromDistance);
             }
 
@@ -116,7 +116,7 @@ namespace LZ4s
             // Write literal bytes
             if (token.LiteralLength > 0)
             {
-                _compressedBuffer.Append(array, index, token.LiteralLength);
+                _compressedBuffer.AppendFrom(array, index, token.LiteralLength);
             }
 
             // Write copy relative position
@@ -137,7 +137,7 @@ namespace LZ4s
             // TODO: Uncompressed length
 
             // Write everything
-            _compressedBuffer.Write(_stream);
+            _compressedBuffer.WriteTo(_stream);
         }
 
         public void Dispose()
