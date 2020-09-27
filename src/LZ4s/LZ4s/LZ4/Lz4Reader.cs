@@ -49,8 +49,8 @@ namespace LZ4s
                 if (length == 0 || _endOfData) { break; }
 
                 // Otherwise, make buffer space and read more from the file
-                _uncompressedBuffer.Shift();
-                _compressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
+                _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
+                _compressedBuffer.Shift();
                 int readFromFile = _compressedBuffer.AppendFrom(_stream);
                 _endOfData = (readFromFile == 0);
             }
@@ -70,6 +70,12 @@ namespace LZ4s
             // If token not fully in compressed buffer, stop
             int compressedLength = 2 + literalLength + (copyLength > 0 ? 2 : 0);
             if (_compressedBuffer.Length < compressedLength)
+            {
+                return false;
+            }
+
+            // If token won't fit in uncompressed buffer, stop
+            if (_uncompressedBuffer.End + literalLength + copyLength >= _uncompressedBuffer.Capacity)
             {
                 return false;
             }

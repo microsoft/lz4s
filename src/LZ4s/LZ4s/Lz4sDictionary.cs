@@ -79,7 +79,6 @@ namespace LZ4s
 
             public void Add(long position, uint hash)
             {
-                if(position == 34128) { Debugger.Break(); }
                 uint bucket = hash % (uint)Positions.Length;
 
                 while (Positions[bucket] != 0)
@@ -93,7 +92,6 @@ namespace LZ4s
 
             public void FindLongestMatch(long position, FileBuffer buffer, int index, uint hash, ref Match match, bool add)
             {
-                if(position == 34128) { Debugger.Break(); }
                 uint bucket = hash % (uint)Positions.Length;
 
                 while (Positions[bucket] != 0)
@@ -101,13 +99,16 @@ namespace LZ4s
                     long matchPosition = (Start + Positions[bucket]);
                     long relativePosition = position - matchPosition;
 
-                    int matchIndex = (int)(index - relativePosition);
-                    int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumLiteralOrCopyLength, buffer.End - index), index - matchIndex));
-
-                    if (matchLength > match.Length)
+                    if (relativePosition < Lz4Constants.MaximumCopyFromDistance)
                     {
-                        match.Position = matchPosition;
-                        match.Length = matchLength;
+                        int matchIndex = (int)(index - relativePosition);
+                        int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumLiteralOrCopyLength, buffer.End - index), index - matchIndex));
+
+                        if (matchLength > match.Length)
+                        {
+                            match.Position = matchPosition;
+                            match.Length = matchLength;
+                        }
                     }
 
                     bucket++;

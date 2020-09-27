@@ -16,11 +16,11 @@ namespace LZ4s.Test
             RoundTripFile(filePath, extension);
         }
 
-        //[Fact]
-        //public void RoundTrip_Debug()
-        //{
-        //    RoundTripFile(@"C:\Download\LZ4S_Content\Silesia\dickens", "lz4");
-        //}
+        [Fact]
+        public void RoundTrip_Debug()
+        {
+            RoundTripFile(@"C:\Download\LZ4S_Content\Silesia\dickens", "lz4");
+        }
 
         //[Fact]
         //public void RoundTrip_Silesia()
