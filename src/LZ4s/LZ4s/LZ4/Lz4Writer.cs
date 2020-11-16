@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -55,13 +56,11 @@ namespace LZ4s
 
             if (i >= inputEnd) { return; }
 
-            // Load first three bytes of array into key 
-            uint key = (uint)((array[i] << 16) + (array[i + 1] << 8) + (array[i + 2]));
-
             while (i < inputEnd)
             {
                 int tokenStart = i;
                 int innerEnd = Math.Min(inputEnd, tokenStart + Lz4Constants.MaximumLiteralOrCopyLength);
+                uint key = (uint)((array[i] << 16) + (array[i + 1] << 8) + (array[i + 2]));
 
                 while (i < innerEnd)
                 {
@@ -73,11 +72,11 @@ namespace LZ4s
 
                     if (best.Length >= Lz4Constants.MinimumCopyLength)
                     {
-                        // Add array[i + 1] .. array[i + (length-1)] to the Dictionary
-                        for (int j = i + 1; j < i + best.Length; ++j)
-                        {
-                            _matchTable.Add(_uncompressedBuffer, j, key);
-                        }
+                        //// Add array[i + 1] .. array[i + (length-1)] to the Dictionary
+                        //for (int j = i + 1; j < i + best.Length; ++j)
+                        //{
+                        //    _matchTable.Add(_uncompressedBuffer, j, key);
+                        //}
 
                         long copyToPosition = _uncompressedBuffer.ArrayStartPosition + i;
 

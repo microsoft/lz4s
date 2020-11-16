@@ -30,7 +30,7 @@ namespace LZ4s.Test
         {
             // Fine: dickens, mr (10.8 sec), ooffice, osdb, reymont, sao, webster (5 sec), xml, x-ray
             // Fail: (different): samba, mozilla (60s), nci
-            RoundTripFile(@"C:\Download\LZ4S_Content\Silesia\mr", "lz4");
+            RoundTripFile(@"C:\Download\LZ4S_Content\Silesia\xml", "lz4");
         }
 
         //[Fact]
