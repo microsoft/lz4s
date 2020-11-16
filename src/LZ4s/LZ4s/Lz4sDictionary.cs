@@ -95,18 +95,17 @@ namespace LZ4s
 
                     if (nextByteIndex < buffer.End)
                     {
-                        hash = Hashing.Murmur3_Mix(hash + buffer.Array[nextByteIndex++]);
+                        hash = Hashing.Murmur3_Mix(1 + hash + buffer.Array[nextByteIndex++]);
                     }
                     else
                     {
-                        hash = Hashing.Murmur3_Mix(hash + 1);
+                        hash = Hashing.Murmur3_Mix(1 + hash);
                     }
 
                     bucket = hash % (uint)Positions.Length;
 
                     //bucket++;
                     //if (bucket == Positions.Length) { bucket = 0; }
-
                 }
 
                 MatchTable.CheckTotal += checkCount;
@@ -144,11 +143,11 @@ namespace LZ4s
 
                     if (nextByteIndex < buffer.End)
                     {
-                        hash = Hashing.Murmur3_Mix(hash + buffer.Array[nextByteIndex++]);
+                        hash = Hashing.Murmur3_Mix(1 + hash + buffer.Array[nextByteIndex++]);
                     }
                     else
                     {
-                        hash = Hashing.Murmur3_Mix(hash + 1);
+                        hash = Hashing.Murmur3_Mix(1 + hash);
                     }
 
                     bucket = hash % (uint)Positions.Length;
