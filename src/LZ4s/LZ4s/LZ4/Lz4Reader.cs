@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace LZ4s
@@ -51,8 +52,10 @@ namespace LZ4s
                 // Otherwise, make buffer space and read more from the file
                 _uncompressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
                 _compressedBuffer.Shift();
-                int readFromFile = _compressedBuffer.AppendFrom(_stream);
-                _endOfData = (readFromFile == 0);
+                _compressedBuffer.AppendFrom(_stream);
+
+                // If everything was previously read and decoded, we're out of data
+                _endOfData = (_compressedBuffer.Length == 0);
             }
 
             // Return overall length read
@@ -62,7 +65,7 @@ namespace LZ4s
         private bool ReadToken(byte[] array, ref int index, int end)
         {
             if (_compressedBuffer.Length < 2) { return false; }
-
+            
             byte[] source = _compressedBuffer.Array;
             byte literalLength = source[_compressedBuffer.Index];
             byte copyLength = source[_compressedBuffer.Index + 1];

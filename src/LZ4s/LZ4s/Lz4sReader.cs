@@ -57,8 +57,10 @@ namespace LZ4s
                 // Otherwise, make buffer space and read more from the file
                 _uncompressedBuffer.Shift();
                 _compressedBuffer.Shift(Constants.MaximumCopyFromDistance);
-                int readFromFile = _compressedBuffer.AppendFrom(_stream);
-                _endOfData = (readFromFile == 0);
+                _compressedBuffer.AppendFrom(_stream);
+
+                // If everything was previously read and decoded, we're out of data
+                _endOfData = (_compressedBuffer.Length == 0);
             }
 
             // Return overall length read
