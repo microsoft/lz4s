@@ -1,7 +1,8 @@
 {
   "profiles": {
     "LZ4s.Client": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "compressfolder "
     }
   }
 }

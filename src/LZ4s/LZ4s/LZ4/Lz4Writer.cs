@@ -76,7 +76,7 @@ namespace LZ4s
                         // Add array[i + 1] .. array[i + (length-1)] to the Dictionary
                         for (int j = i + 1; j < i + best.Length; ++j)
                         {
-                            _matchTable.Add(_uncompressedBuffer.ArrayStartPosition + j, key);
+                            _matchTable.Add(_uncompressedBuffer, j, key);
                         }
 
                         long copyToPosition = _uncompressedBuffer.ArrayStartPosition + i;
@@ -112,11 +112,11 @@ namespace LZ4s
                 _compressedBuffer.Shift(Lz4Constants.MaximumCopyFromDistance);
             }
 
-#if DEBUG
-            string literal = Encoding.UTF8.GetString(array, index, token.LiteralLength);
-            string copy = Encoding.UTF8.GetString(array, index + token.LiteralLength, token.CopyLength);
-            string copySource = Encoding.UTF8.GetString(array, index + token.LiteralLength - token.CopyFromRelativeIndex, token.CopyLength);
-#endif
+//#if DEBUG
+//            string literal = Encoding.UTF8.GetString(array, index, token.LiteralLength);
+//            string copy = Encoding.UTF8.GetString(array, index + token.LiteralLength, token.CopyLength);
+//            string copySource = Encoding.UTF8.GetString(array, index + token.LiteralLength - token.CopyFromRelativeIndex, token.CopyLength);
+//#endif
 
             _compressedBuffer.Append(token.LiteralLength);
             _compressedBuffer.Append(token.CopyLength);

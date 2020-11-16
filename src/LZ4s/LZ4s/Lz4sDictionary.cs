@@ -14,11 +14,12 @@ namespace LZ4s
         public int Length;
     }
 
-    internal class MatchTable
+    public class MatchTable
     {
         private MatchTableSlice Previous;
         private MatchTableSlice Current;
         private long NextSwap;
+        public static long CheckTotal;
 
         public MatchTable()
         {
@@ -27,11 +28,14 @@ namespace LZ4s
             NextSwap = ushort.MaxValue;
         }
 
-        public void Add(long position, uint key)
+        public void Add(FileBuffer buffer, int index, uint key)
         {
+            long position = buffer.ArrayStartPosition + index;
             if (position >= NextSwap) { Swap(); }
+
             uint hash = Hashing.Murmur3_Mix(key);
-            Current.Add(position, hash);
+
+            Current.Add(position, buffer, index, hash);
         }
 
         public Match FindLongestMatch(FileBuffer buffer, int index, uint key)
@@ -77,32 +81,59 @@ namespace LZ4s
                 Positions = new ushort[length];
             }
 
-            public void Add(long position, uint hash)
+            public void Add(long position, FileBuffer buffer, int index, uint hash)
             {
+                uint checkCount = 0;
                 uint bucket = hash % (uint)Positions.Length;
+
+                // First byte in array not in key/hash
+                int nextByteIndex = index + 4;
 
                 while (Positions[bucket] != 0)
                 {
-                    bucket++;
-                    if (bucket >= Positions.Length) { bucket = 0; }
+                    checkCount++;
+
+                    if (nextByteIndex < buffer.End)
+                    {
+                        hash = Hashing.Murmur3_Mix(hash + buffer.Array[nextByteIndex++]);
+                    }
+                    else
+                    {
+                        hash = Hashing.Murmur3_Mix(hash + 1);
+                    }
+
+                    bucket = hash % (uint)Positions.Length;
+
+                    //bucket++;
+                    //if (bucket == Positions.Length) { bucket = 0; }
+
                 }
 
+                MatchTable.CheckTotal += checkCount;
                 Positions[bucket] = (ushort)(position - Start);
             }
 
             public void FindLongestMatch(long position, FileBuffer buffer, int index, uint hash, ref Match match, bool add)
             {
+                uint checkCount = 0;
                 uint bucket = hash % (uint)Positions.Length;
+
+                // First byte in array not in key/hash
+                int nextByteIndex = index + 4;
+
+                int maxMatchLength = Math.Min(Lz4Constants.MaximumLiteralOrCopyLength, buffer.End - index);
 
                 while (Positions[bucket] != 0)
                 {
+                    checkCount++;
+
                     long matchPosition = (Start + Positions[bucket]);
                     long relativePosition = position - matchPosition;
 
-                    if (relativePosition < Lz4Constants.MaximumCopyFromDistance)
+                    if (relativePosition < Lz4Constants.MaximumCopyFromDistance && match.Length < maxMatchLength)
                     {
                         int matchIndex = (int)(index - relativePosition);
-                        int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(Math.Min(Lz4Constants.MaximumLiteralOrCopyLength, buffer.End - index), index - matchIndex));
+                        int matchLength = Helpers.MatchLength(buffer.Array, index, buffer.Array, matchIndex, Math.Min(maxMatchLength, index - matchIndex));
 
                         if (matchLength > match.Length)
                         {
@@ -111,9 +142,22 @@ namespace LZ4s
                         }
                     }
 
-                    bucket++;
-                    if (bucket >= Positions.Length) { bucket = 0; }
+                    if (nextByteIndex < buffer.End)
+                    {
+                        hash = Hashing.Murmur3_Mix(hash + buffer.Array[nextByteIndex++]);
+                    }
+                    else
+                    {
+                        hash = Hashing.Murmur3_Mix(hash + 1);
+                    }
+
+                    bucket = hash % (uint)Positions.Length;
+
+                    //bucket++;
+                    //if (bucket == Positions.Length) { bucket = 0; }
                 }
+
+                MatchTable.CheckTotal += checkCount;
 
                 if (add)
                 {
