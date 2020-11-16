@@ -96,12 +96,6 @@ namespace LZ4s
                 expected.Seek(0, SeekOrigin.Begin);
                 actual.Seek(0, SeekOrigin.Begin);
 
-                if (expected.Length != actual.Length)
-                {
-                    errorMessage = $"Error: '{actualName}' was {actual.Length:n0} bytes, but expected '{expectedName}' was {expected.Length:n0} bytes.";
-                    return false;
-                }
-
                 long position = 0;
                 byte[] bufferExpected = new byte[Constants.BufferSize];
                 byte[] bufferActual = new byte[bufferExpected.Length];
@@ -110,6 +104,13 @@ namespace LZ4s
                 {
                     int expectedLength = expected.Read(bufferExpected, 0, bufferExpected.Length);
                     int actualLength = actual.Read(bufferActual, 0, bufferActual.Length);
+
+                    if (expectedLength != actualLength)
+                    {
+                        errorMessage = $"Error: Data ended at {(position + actualLength):n0} bytes, bute {expected.Length:n0} total bytes expected.";
+                        return false;
+                    }
+
                     if (expectedLength == 0) { break; }
 
                     for (int i = 0; i < expectedLength; ++i)
