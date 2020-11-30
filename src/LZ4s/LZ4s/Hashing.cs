@@ -22,5 +22,30 @@
 
             return h;
         }
+
+        // More options from:
+        // https://nullprogram.com/blog/2018/07/31/
+        // "All information on this blog, unless otherwise noted, is hereby released into the public domain, with no rights reserved."
+        public static uint LowBias32(uint x)
+        {
+            x ^= x >> 16;
+            x *= 0x7feb352d;
+            x ^= x >> 15;
+            x *= 0x846ca68b;
+            x ^= x >> 16;
+            return x;
+        }
+
+        public static uint Triple32(uint x)
+        {
+            x ^= x >> 17;
+            x *= 0xed5ad4bb;
+            x ^= x >> 11;
+            x *= 0xac4c1b51;
+            x ^= x >> 15;
+            x *= 0x31848bab;
+            x ^= x >> 14;
+            return x;
+        }
     }
 }

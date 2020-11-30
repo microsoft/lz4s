@@ -1,5 +1,1 @@
-[
-    { "name": "Scott", "age": 39, "city": "Redmond" },
-    { "name": "Adam", "age": 36, "city": "Seattle" },
-    { "name": "Darinee", "age": 39, "city": "Redmond" }
-]
+[ { "name": "Scott", "age": 39, "city": "Redmond" }, { "name": "Adam", "age": 36, "city": "Seattle" }, { "name": "Darinee", "age": 39, "city": "Redmond" } ]
