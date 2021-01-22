@@ -2,7 +2,7 @@
   "profiles": {
     "LZ4s.Client": {
       "commandName": "Project",
-      "commandLineArgs": "compressfolder lz4 C:\\Download\\LZ4S_Content\\Silesia"
+      "commandLineArgs": "compressfolder lz4 C:\\Download\\Silesia_Corpus"
     }
   }
 }

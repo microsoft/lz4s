@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RoughBench;
+using System;
 using System.Diagnostics;
 using System.IO;
 
@@ -6,119 +7,56 @@ namespace LZ4s.Client
 {
     class CompressionTester
     {
-        private const string Units = "KB";
-        private const double UnitBytes = Kilobyte;
-
-        private const double Kilobyte = 1024;
-        private const double Megabyte = 1024 * 1024;
-
-        private readonly byte[] Buffer;
-        private readonly string FolderPath;
-        private readonly string CompressedFolder;
-        private readonly string OutFolder;
-        private readonly string Extension;
-
-        private bool AnyFailures;
-        private long UncompressedTotalBytes;
-        private long CompressedTotalBytes;
-        private TimeSpan CompressionTotalTime;
-        private TimeSpan DecompressionTotalTime;
-
-        public CompressionTester(string folderPath, string extension)
+        public static void CompressFolder(string extension, string sourcePath, string compressedPath, string outPath)
         {
-            Buffer = new byte[Lz4Constants.BufferSize];
-            FolderPath = folderPath;
-            Extension = extension;
+            byte[] buffer = new byte[Lz4Constants.BufferSize];
 
-            CompressedFolder = Path.Combine(folderPath, extension);
-            OutFolder = Path.Combine(folderPath, "Out");
+            Directory.CreateDirectory(compressedPath);
+            Directory.CreateDirectory(outPath);
 
-            Directory.CreateDirectory(CompressedFolder);
-            Directory.CreateDirectory(OutFolder);
-        }
+            ConsoleTable table = new ConsoleTable(
+                new TableCell("U. Size", Align.Right),
+                new TableCell("C. Size", Align.Right),
+                new TableCell("Ratio", Align.Right),
+                new TableCell("Compress", Align.Right),
+                new TableCell("Decompress", Align.Right),
+                new TableCell("Match")
+            );
 
-        public void WriteHeader()
-        {
-            Console.WriteLine($"Pass?\t{Units}\t{Units}/s\t=>\t{Units}\tRatio\t=>\t{Units}/s\tName");
-        }
-
-        public void WriteFooter()
-        {
-            Console.WriteLine("===================================================================================================");
-            Console.WriteLine($"{(AnyFailures ? "FAIL" : "PASS")}\t{(UncompressedTotalBytes / UnitBytes):n2}\t{UncompressedTotalBytes / (UnitBytes * CompressionTotalTime.TotalSeconds):n0}\t=>\t{CompressedTotalBytes / UnitBytes:n2}\t{(1 - ((double)CompressedTotalBytes) / UncompressedTotalBytes):p0}\t=>\t{UncompressedTotalBytes / (UnitBytes * DecompressionTotalTime.TotalSeconds):n0}\t{Extension.ToUpperInvariant()}");
-        }
-
-        public void RoundTripFile(FileInfo file, int decompressIterations = 1)
-        {
-            string compressedPath = Path.Combine(CompressedFolder, file.Name + "." + Extension);
-            string outPath = Path.Combine(OutFolder, file.Name);
-
-            Stopwatch cw = Stopwatch.StartNew();
-            Lz4sStream.Compress(file.FullName, compressedPath, Buffer);
-            cw.Stop();
-
-            CompressionTotalTime += cw.Elapsed;
-            UncompressedTotalBytes += file.Length;
-
-            Stopwatch dw = Stopwatch.StartNew();
-            for (int i = 0; i < decompressIterations; ++i)
+            foreach (FileInfo file in new DirectoryInfo(sourcePath).GetFiles())
             {
-                Lz4sStream.Decompress(compressedPath, outPath, Buffer);
-            }
-            dw.Stop();
+                string compressedFilePath = Path.Combine(compressedPath, file.Name + "." + extension);
+                string outFilePath = Path.Combine(outPath, file.Name);
 
-            long compressedLength = new FileInfo(compressedPath).Length;
-            DecompressionTotalTime += (dw.Elapsed / decompressIterations);
-            CompressedTotalBytes += compressedLength;
+                Stopwatch cw = Stopwatch.StartNew();
+                Lz4sStream.Compress(file.FullName, compressedFilePath, buffer);
+                cw.Stop();
 
-            if (!Lz4sStream.VerifyBytesEqual(file.FullName, outPath, out string errorMessage))
-            {
-                AnyFailures = true;
-                Console.WriteLine($"FAIL '{file.Name}: {errorMessage}");
-            }
-            else
-            {
-                Console.WriteLine($"PASS\t{(file.Length / UnitBytes):n2}\t{file.Length / (UnitBytes * cw.Elapsed.TotalSeconds):n0}\t=>\t{compressedLength / UnitBytes:n2}\t{(1 - ((double)compressedLength) / file.Length):p0}\t=>\t{decompressIterations * file.Length / (UnitBytes * dw.Elapsed.TotalSeconds):n0}\t{file.Name}");
-            }
-        }
+                FileInfo compressedFile = new FileInfo(compressedFilePath);
 
-        public static void CompressFolder(string folderPath, string extension)
-        {
-            CompressionTester tester = new CompressionTester(folderPath, extension);
+                Stopwatch dw = Stopwatch.StartNew();
+                Lz4sStream.Decompress(compressedFilePath, outFilePath, buffer);
+                dw.Stop();
 
-            tester.WriteHeader();
-            foreach (FileInfo file in new DirectoryInfo(folderPath).GetFiles())
-            {
-                tester.RoundTripFile(file, decompressIterations: 10);
+                bool matches = Lz4sStream.VerifyBytesEqual(file.FullName, outFilePath, out string errorMessage);
+
+                table.AppendRow(
+                    Format.Size(file.Length),
+                    Format.Size(compressedFile.Length),
+                    Format.Ratio(file.Length, compressedFile.Length),
+                    Format.Rate(file.Length, cw.Elapsed.TotalSeconds),
+                    Format.Rate(file.Length, dw.Elapsed.TotalSeconds),
+                    (matches ? "PASS" : $"FAIL {errorMessage}")
+                );
             }
-            tester.WriteFooter();
         }
 
         public static void DecompressionPerformance(string filePath, string extension, int decompressIterations)
         {
-            CompressionTester tester = new CompressionTester(Path.GetDirectoryName(filePath), extension);
+            //CompressionTester tester = new CompressionTester(Path.GetDirectoryName(filePath), extension);
 
-            tester.WriteHeader();
-            tester.RoundTripFile(new FileInfo(filePath), decompressIterations: decompressIterations);
-        }
-
-        private static Stream OpenFile(string filePath, bool preloadIntoMemory)
-        {
-            if (preloadIntoMemory)
-            {
-                MemoryStream stream = new MemoryStream();
-
-                using (Stream fileStream = File.OpenRead(filePath))
-                {
-                    fileStream.CopyTo(stream);
-                }
-
-                return stream;
-            }
-            else
-            {
-                return File.OpenRead(filePath);
-            }
+            //tester.WriteHeader();
+            //tester.RoundTripFile(new FileInfo(filePath), decompressIterations: decompressIterations);
         }
     }
 }

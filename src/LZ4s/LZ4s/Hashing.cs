@@ -23,8 +23,27 @@
             return h;
         }
 
+        public static uint Murmur1_Mix(uint h)
+        {
+            h *= 0xc6a4a793;
+            h ^= h >> 10;
+            h *= 0xc6a4a793;
+            h ^= h >> 17;
+
+            return h;
+        }
+
+        public static uint Murmur2_Mix(uint h)
+        {
+            h ^= h >> 13;
+            h *= 0x5bd1e995;
+            h ^= h >> 15;
+
+            return h;
+        }
+
         // More options from:
-        // https://nullprogram.com/blog/2018/07/31/
+        // https://nullprogram.com/blog/2018/07/31/; https://github.com/skeeto/hash-prospector
         // "All information on this blog, unless otherwise noted, is hereby released into the public domain, with no rights reserved."
         public static uint LowBias32(uint x)
         {
